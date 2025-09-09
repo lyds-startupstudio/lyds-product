@@ -1,1 +1,1 @@
-"# LYD Product" 
+Lee Dubrovsky, Yuval Erdreich, Daniel Danziger
