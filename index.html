@@ -2,73 +2,69 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LYD | addy – Task Management Reinvented</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lyd Addy</title>
   <link rel="stylesheet" href="styles.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
 </head>
 <body>
-  <header>
-    <div class="logo">
-      <img src="whitelogo.png" alt="LYD Logo" />
-    </div>
-    <nav>
-      <a href="#features">Features</a>
-      <a href="#audience">Who it's for</a>
-      <a href="#contact">Get Started</a>
+  <!-- Hero Section -->
+  <header class="hero">
+    <div class="overlay"></div>
+    <nav class="nav">
+      <img src="whitelogo.png" alt="Lyd Logo" class="logo" />
     </nav>
+    <div class="hero-content fade-in">
+      <img src="addylogo.png" alt="Addy Logo" class="addy-logo" />
+      <h1>Supercharge your team's workflow with Addy</h1>
+      <p>The gamified plugin for Jira &amp; Monday that makes work fun</p>
+      <button class="cta-btn" onclick="scrollToFeatures()">Get Started</button>
+    </div>
   </header>
 
-  <section class="hero">
-    <img src="addylogo.jpg" alt="Addy Logo" class="hero-logo" />
-    <h1>Meet <strong>addy</strong></h1>
-    <p>Your smart workspace for tasks, projects & personal goals – all in one place.</p>
-    <button onclick="navigateToContact()">Try addy now</button>
-  </section>
-
-  <section id="features" class="section">
-    <h2>Main Features</h2>
-    <div class="features">
-      <div class="card">
-        <h3>Smart Task Management</h3>
-        <p>Create, assign, and track tasks effortlessly. Add deadlines, priorities, and labels.</p>
-      </div>
-      <div class="card">
-        <h3>Team Collaboration</h3>
-        <p>Work with teams in real-time, assign roles, and leave comments directly on tasks.</p>
-      </div>
-      <div class="card">
-        <h3>Personal Mode</h3>
-        <p>Switch to personal planner mode to organize your student life or side projects.</p>
-      </div>
+  <!-- Features Section -->
+  <section id="features" class="features">
+    <div class="feature-item fade-in-delay-1">
+      <h3>Gamified Tasks</h3>
+      <p>Turns task management into a game.</p>
+    </div>
+    <div class="feature-item fade-in-delay-2">
+      <h3>Boost Productivity</h3>
+      <p>Increases engagement and efficiency.</p>
+    </div>
+    <div class="feature-item fade-in-delay-3">
+      <h3>Real-Time Collaboration</h3>
+      <p>Keep everyone in sync seamlessly.</p>
+    </div>
+    <div class="feature-item fade-in-delay-4">
+      <h3>Seamless Integration</h3>
+      <p>Connects flawlessly with Jira &amp; Monday.</p>
     </div>
   </section>
 
-  <section id="audience" class="section">
-    <h2>Perfect For</h2>
-    <div class="audiences">
-      <div class="card">
-        <h3>Companies & Startups</h3>
-        <p>Manage teams, projects, and clients with an intuitive dashboard and workflow tools.</p>
-      </div>
-      <div class="card">
-        <h3>Freelancers</h3>
-        <p>Organize clients, invoices, and deadlines in one simple platform.</p>
-      </div>
-      <div class="card">
-        <h3>Students</h3>
-        <p>Track classes, assignments, exams, and personal goals without the chaos.</p>
-      </div>
+  <!-- Integrations Section -->
+  <section class="integrations fade-in">
+    <h2>Integrations</h2>
+    <div class="logos">
+      <img src="Jira_Logo.svg.png" alt="Jira" />
+      <img src="Logo-monday.png" alt="Monday.com" />
+      <!-- Add more platform logos as needed -->
     </div>
   </section>
 
-  <section id="contact" class="section cta">
-    <h2>Ready to boost your productivity?</h2>
-    <button onclick="navigateToContact()">Contact Us</button>
+  <!-- Contact Section -->
+  <section class="contact fade-in-delay-2">
+    <h2>Contact Us</h2>
+    <form id="contact-form" onsubmit="submitForm(event)">
+      <input type="text" name="name" placeholder="Name" required />
+      <input type="email" name="email" placeholder="Email" required />
+      <textarea name="message" placeholder="Message" rows="4" required></textarea>
+      <button type="submit" class="cta-btn">Submit</button>
+    </form>
   </section>
 
-  <footer>
-    <p>&copy; 2025 LYD. All rights reserved. | Domain: <a href="https://lyds.me">lyds.me</a></p>
+  <!-- Footer -->
+  <footer class="footer fade-in-delay-3">
+    <p>© 2025 Lyd. All rights reserved.</p>
   </footer>
 
   <script src="script.js"></script>
