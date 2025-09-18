@@ -75,5 +75,3 @@ window.addEventListener('scroll', () => {
     parallax.style.transform = `translateY(${speed}px)`;
   }
 });
-
-myUndefinedFunction();
