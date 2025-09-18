@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QuestBoard - Gamified Team Management</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <!-- Setup Screen -->
+  <div id="setupScreen" class="screen active">
+    <div class="setup-container">
+      <div class="setup-header">
+        <div class="setup-logo">QuestBoard</div>
+        <h1 class="setup-title">Setup Your Workspace</h1>
+        <p class="setup-subtitle">Let's customize QuestBoard for your specific needs</p>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      </div>
+
+      <div class="setup-content">
+        <!-- Step 1 -->
+        <div class="step active" id="step1">
+          <h2 class="step-title">Who will be using QuestBoard?</h2>
+          <div class="option-grid">
+            <div class="option-card" onclick="selectOption('userType','personal',this)">
+              <span class="option-icon">👤</span>
+              <h3 class="option-title">Personal Use</h3>
+              <p class="option-description">Manage your own tasks, projects, and personal goals</p>
+            </div>
+            <div class="option-card" onclick="selectOption('userType','business',this)">
+              <span class="option-icon">🏢</span>
+              <h3 class="option-title">Business/Team</h3>
+              <p class="option-description">Manage team tasks, collaborate with colleagues, and track business objectives</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2A -->
+        <div class="step" id="step2a">
+          <h2 class="step-title">What type of business are you?</h2>
+          <div class="option-grid">
+            <div class="option-card" onclick="selectOption('businessType','tech',this)"><span class="option-icon">💻</span><h3 class="option-title">Tech Company</h3></div>
+            <div class="option-card" onclick="selectOption('businessType','retail',this)"><span class="option-icon">🛍️</span><h3 class="option-title">Retail/E-commerce</h3></div>
+            <div class="option-card" onclick="selectOption('businessType','hospitality',this)"><span class="option-icon">☕</span><h3 class="option-title">Hospitality</h3></div>
+            <div class="option-card" onclick="selectOption('businessType','professional',this)"><span class="option-icon">📊</span><h3 class="option-title">Professional Services</h3></div>
+            <div class="option-card" onclick="selectOption('businessType','creative',this)"><span class="option-icon">🎨</span><h3 class="option-title">Creative Industry</h3></div>
+            <div class="option-card" onclick="selectOption('businessType','other',this)"><span class="option-icon">🏭</span><h3 class="option-title">Other</h3></div>
+          </div>
+        </div>
+
+        <!-- Step 2B -->
+        <div class="step" id="step2b">
+          <h2 class="step-title">What's your main goal with QuestBoard?</h2>
+          <div class="option-grid">
+            <div class="option-card" onclick="selectOption('personalPurpose','productivity',this)"><span class="option-icon">⚡</span><h3 class="option-title">Personal Productivity</h3></div>
+            <div class="option-card" onclick="selectOption('personalPurpose','study',this)"><span class="option-icon">📚</span><h3 class="option-title">Study & Learning</h3></div>
+            <div class="option-card" onclick="selectOption('personalPurpose','freelance',this)"><span class="option-icon">💼</span><h3 class="option-title">Freelance Work</h3></div>
+            <div class="option-card" onclick="selectOption('personalPurpose','creative',this)"><span class="option-icon">🎯</span><h3 class="option-title">Creative Projects</h3></div>
+          </div>
+        </div>
+
+        <!-- Step 3A -->
+        <div class="step" id="step3a">
+          <h2 class="step-title">What teams or departments do you have?</h2>
+          <div class="form-group">
+            <label class="form-label">Add your teams</label>
+            <div class="tag-input-container" onclick="focusTagInput()">
+              <div id="teamTags"></div>
+              <input id="teamInput" class="tag-input" type="text" placeholder="Type team name and press Enter" onkeypress="handleTeamInput(event)"/>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3B -->
+        <div class="step" id="step3b">
+          <h2 class="step-title">What categories of tasks do you want to manage?</h2>
+          <div class="form-group">
+            <label class="form-label">Add your task categories</label>
+            <div class="tag-input-container" onclick="focusTagInput()">
+              <div id="categoryTags"></div>
+              <input id="categoryInput" class="tag-input" type="text" placeholder="Type category name and press Enter" onkeypress="handleCategoryInput(event)"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button id="prevBtn" class="btn btn-secondary" onclick="previousStep()" style="display:none;">Previous</button>
+          <div></div>
+          <button id="nextBtn" class="btn btn-primary" onclick="nextStep()" disabled>Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Avatar Creation -->
+  <div id="avatarScreen" class="screen">
+    <div class="avatar-creation-container">
+      <div class="avatar-card">
+        <button type="button" class="back-link" id="avatarBackBtn">← Back</button>
+        <h1 class="avatar-title">Create Your Quest Avatar</h1>
+        <form id="avatarForm" class="avatar-form">
+          <div class="form-group">
+            <label class="form-label">Your Name</label>
+            <input id="userName" class="form-control" placeholder="Enter your name" required/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Job Title</label>
+            <input id="jobTitle" class="form-control" placeholder="Enter your role" required/>
+          </div>
+          <div class="form-group" id="teamSelectionGroup" style="display:none;">
+            <label class="form-label">Select Your Team</label>
+            <select id="userTeam" class="form-control">
+              <option value="">Select your team</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Choose Your Avatar</label>
+            <div id="avatarGrid" class="avatar-grid"></div>
+          </div>
+          <div class="avatar-actions">
+            <button type="button" class="btn btn-secondary" id="cancelAvatarBtn">Cancel</button>
+            <button type="submit" class="btn btn--primary quest-button">
+              <span>Start Your Journey</span>
+              <div class="button-shine"></div>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Office -->
+  <div id="platformScreen" class="screen">
+    <div class="platform-container">
+      <header class="top-nav">
+        <div class="nav-left"><div class="logo">QuestBoard</div></div>
+        <div class="nav-center">
+          <div class="user-info">
+            <div id="navUserAvatar" class="user-avatar-nav"></div>
+            <div class="user-details">
+              <div id="navUserName" class="user-name"></div>
+              <div id="navUserRole" class="user-role"></div>
+            </div>
+          </div>
+        </div>
+        <div class="nav-right">
+          <div class="user-stats">
+            <div class="stat-item">
+              <span id="teamPoints" class="stat-value">0</span>
+              <span class="stat-label">Team Points</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div id="officeLayout" class="office-layout">
+        <div id="officeMap" class="office-map">
+          <div id="userCharacter" class="user-character">
+            <div class="character-avatar"></div>
+            <div class="character-name"></div>
+          </div>
+          <div id="teamRoomsContainer"></div>
+        </div>
+
+        <div class="game-instructions">
+          <div class="instruction">Use ← → ↑ ↓ or WASD to move</div>
+          <div class="instruction">Go near a team room and press E to enter</div>
+        </div>
+
+        <aside id="sidePanel" class="side-panel">
+          <div class="side-section">
+            <div class="section-title">Teams</div>
+            <div id="sidebarTeamList" class="sidebar-list"></div>
+          </div>
+          <div class="side-section">
+            <div class="section-title">Employees</div>
+            <input id="employeeSearch" class="form-control form-control--sm" placeholder="Search employee..."/>
+            <div id="sidebarEmployeeList" class="sidebar-list"></div>
+          </div>
+        </aside>
+
+        <button id="createNewAvatarBtn" class="btn btn-secondary">+ Create New Avatar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Team -->
+  <div id="teamScreen" class="screen">
+    <div class="team-container">
+      <header class="team-header">
+        <button id="backButton" class="back-button">← Back to Office</button>
+        <div class="team-info">
+          <h2 id="teamName" class="team-title"></h2>
+          <div id="teamMembersList" class="team-members"></div>
+        </div>
+        <div class="team-actions">
+          <button id="addTaskHeaderBtn" class="add-task-header-btn">+ Add Task</button>
+          <button id="manageEventsBtn" class="manage-events-btn">⚙️ Manage Events</button>
+        </div>
+      </header>
+
+      <!-- Backlog belt (top) -->
+      <section class="backlog-belt">
+        <div class="belt-header">
+          <div class="belt-left">
+            <span class="belt-title">📝 Backlog</span>
+            <span class="belt-hint">Drag from here to assign →</span>
+          </div>
+          <div class="belt-right">
+            <button id="beltToggle" class="btn btn-secondary btn-sm">Pause</button>
+            <span class="belt-count" id="backlogCount">0</span>
+          </div>
+        </div>
+        <div id="backlogBeltViewport" class="belt-viewport" data-paused="false">
+          <div id="backlogBeltTrack" class="belt-track"></div>
+        </div>
+      </section>
+
+      <!-- Kanban (other columns) -->
+      <div class="kanban-board">
+        <div class="kanban-column todo-column">
+          <div class="column-header todo-header">
+            <div class="column-left">
+              <span class="column-title">📋 TODO</span>
+            </div>
+            <span id="todoCount" class="column-count">0</span>
+          </div>
+          <div id="todoTasks" class="column-content" data-status="todo"></div>
+        </div>
+
+        <div class="kanban-column progress-column">
+          <div class="column-header progress-header">
+            <div class="column-left">
+              <span class="column-title">🔥 In Progress</span>
+            </div>
+            <span id="progressCount" class="column-count">0</span>
+          </div>
+          <div id="progressTasks" class="column-content" data-status="in-progress"></div>
+        </div>
+
+        <div class="kanban-column waiting-column">
+          <div class="column-header waiting-header">
+            <div class="column-left">
+              <span class="column-title">⏳ Waiting for approvment</span>
+            </div>
+            <span id="waitingCount" class="column-count">0</span>
+          </div>
+          <div id="waitingTasks" class="column-content" data-status="waiting"></div>
+        </div>
+
+        <div class="kanban-column done-column">
+          <div class="column-header done-header">
+            <div class="column-left">
+              <span class="column-title">✅ Done</span>
+            </div>
+            <span id="doneCount" class="column-count">0</span>
+          </div>
+          <div id="doneTasks" class="column-content" data-status="done"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
