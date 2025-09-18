@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lyd Addy</title>
+  <title>LYD</title>
   <link rel="stylesheet" href="styles.css" />
 
   <script
-  src="https://js.sentry-cdn.com/209287d2a97c111d78c609f2c4dd2552.min.js"
-  crossorigin="anonymous"
-></script>
-  
+    src="https://js.sentry-cdn.com/209287d2a97c111d78c609f2c4dd2552.min.js"
+    crossorigin="anonymous">
+  </script>
 </head>
 <body>
   <!-- Hero Section -->
@@ -22,7 +21,8 @@
     <div class="hero-content fade-in">
       <img src="addylogo.png" alt="Addy Logo" class="addy-logo" />
       <h1>Supercharge your team's workflow with Addy</h1>
-      <p>The gamified plugin for Jira &amp; Monday that makes work fun</p>
+      <p>A playful, visual task-management platform for companies, freelancers, small businesses, and individuals.</p>
+      <!-- התאימי ליעד שלך: /questboard/ או /questboard/AddyIndex.html -->
       <a href="/questboard/AddyIndex.html" class="cta-btn">Get Started</a>
     </div>
   </header>
@@ -31,46 +31,38 @@
   <section id="features" class="features">
     <div class="feature-item fade-in-delay-1">
       <h3>Gamified Tasks</h3>
-      <p>Turns task management into a game.</p>
+      <p>Turn task management into a motivating experience.</p>
     </div>
     <div class="feature-item fade-in-delay-2">
       <h3>Boost Productivity</h3>
-      <p>Increases engagement and efficiency.</p>
+      <p>Keep work organized and focused across boards and teams.</p>
     </div>
     <div class="feature-item fade-in-delay-3">
       <h3>Real-Time Collaboration</h3>
-      <p>Keep everyone in sync seamlessly.</p>
+      <p>Plan, assign, and track progress together—anywhere.</p>
     </div>
     <div class="feature-item fade-in-delay-4">
-      <h3>Seamless Integration</h3>
-      <p>Connects flawlessly with Jira &amp; Monday.</p>
-    </div>
-  </section>
-
-  <!-- Integrations Section -->
-  <section class="integrations fade-in">
-    <h2>Integrations</h2>
-    <div class="logos">
-      <img src="Jira_Logo.svg.png" alt="Jira" />
-      <img src="Logo-monday.png" alt="Monday.com" />
-      <!-- Add more platform logos as needed -->
+      <h3>Built for Everyone</h3>
+      <p>Flexible for companies, freelancers, and personal use.</p>
     </div>
   </section>
 
   <!-- Contact Section -->
   <section class="contact fade-in-delay-2">
     <h2>Contact Us</h2>
-    <form id="contact-form" onsubmit="submitForm(event)">
-      <input type="text" name="name" placeholder="Name" required />
-      <input type="email" name="email" placeholder="Email" required />
+    <!-- was: onsubmit="submitForm(event)" → מעודכן ל-Featurebase -->
+    <form id="contact-form" onsubmit="submitToFeaturebase(event)">
+      <input type="text"   name="name"  placeholder="Name"   required />
+      <input type="email"  name="email" placeholder="Email"  required />
       <textarea name="message" placeholder="Message" rows="4" required></textarea>
       <button type="submit" class="cta-btn">Submit</button>
     </form>
+    <p style="margin-top:0.75rem;opacity:.85;">All feedback is routed to our Featurebase board.</p>
   </section>
 
   <!-- Footer -->
   <footer class="footer fade-in-delay-3">
-    <p>© 2025 Lyd. All rights reserved.</p>
+    <p>© 2025 LYD. All rights reserved.</p>
   </footer>
 
   <script src="script.js"></script>
