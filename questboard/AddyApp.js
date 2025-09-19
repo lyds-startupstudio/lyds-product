@@ -243,29 +243,43 @@ const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const STATUS_ORDER=['backlog','todo','in-progress','waiting','done'];
 
 function openTeam(teamName){
-  state.currentTeam=teamName; const team=state.teams[teamName]; if(!team) return;
+  state.currentTeam=teamName; 
+  const team=state.teams[teamName]; 
+  if(!team) return;
+  
   stopOfficeControls();
   byId('teamName').textContent=teamName;
 
-  const list=byId('teamMembersList'); list.innerHTML=''; team.members.forEach(id=>{
-    const a=state.avatars.find(v=>v.id===id); if(!a) return;
-    const card=document.createElement('div'); card.className='team-member';
-    const av=document.createElement('div'); av.className='member-avatar'; av.textContent=a.emoji;
-    const info=document.createElement('div'); info.className='member-info';
-    const nm=document.createElement('div'); nm.className='member-name'; nm.textContent=a.name+(isLead(a)?' ⭐':'');
-    const rl=document.createElement('div'); rl.className='member-role'; rl.textContent=a.role;
-    info.append(nm,rl); card.append(av,info); list.appendChild(card);
-  });
+  const list=byId('teamMembersList'); 
+  if (list) {
+    list.innerHTML=''; 
+    team.members.forEach(id=>{
+      const a=state.avatars.find(v=>v.id===id); 
+      if(!a) return;
+      const card=document.createElement('div'); 
+      card.className='team-member';
+      const av=document.createElement('div'); 
+      av.className='member-avatar'; 
+      av.textContent=a.emoji;
+      const info=document.createElement('div'); 
+      info.className='member-info';
+      const nm=document.createElement('div'); 
+      nm.className='member-name'; 
+      nm.textContent=a.name+(isLead(a)?' ⭐':'');
+      const rl=document.createElement('div'); 
+      rl.className='member-role'; 
+      rl.textContent=a.role;
+      info.append(nm,rl); 
+      card.append(av,info); 
+      list.appendChild(card);
+    });
+  }
 
   renderBoard(teamName); 
   enableDnD(teamName);
   showScreen('team');
-
-  // קישור כפתורים - אחרי showScreen
-  const addTaskBtn = byId('addTaskHeaderBtn');
-  if (addTaskBtn) {
-    addTaskBtn.onclick = () => showAddTaskModal(teamName);
-  }
+  const addBtn = byId('addTaskHeaderBtn');
+  if (addBtn) addBtn.onclick = () => showAddTaskModal(teamName);
 
   byId('manageEventsBtn').onclick=()=>showManageEventsModal(teamName);
   byId('backButton').onclick=()=>{ showScreen('platform'); renderPlatformForUser(); updateTeamPointsDisplay(); };
@@ -328,12 +342,10 @@ function renderTaskCard(task, team, mini=false, isClone=false){
   const statusText=document.createElement('div'); statusText.className='task-status-text'; statusText.textContent='Status: '+prettyStatus(task.status);
   statusRow.appendChild(statusText);
 
-  // due tag
   if(task.due){
     const d=document.createElement('span'); d.className='pill'; d.textContent='due: '+task.due;
     statusRow.appendChild(d);
   }
-  // role tag (if assigned by role only)
   if(task.assigneeRole && !task.assigneeId){
     const r=document.createElement('span'); r.className='pill'; r.textContent='for: '+task.assigneeRole;
     statusRow.appendChild(r);
@@ -428,7 +440,6 @@ function showAddTaskModal(teamName){
   ensureTeamExists(teamName);
   const team=state.teams[teamName];
 
-  // Build options for members
   const memberOptions = team.members.map(id=>{
     const a=state.avatars.find(v=>v.id===id);
     const nm = a ? a.name : id;
@@ -558,11 +569,38 @@ function showCelebration(points){ const o=document.createElement('div'); o.class
 function toast(msg){ const n=document.createElement('div'); n.textContent=msg; Object.assign(n.style,{position:'fixed',bottom:'24px',left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,.8)',color:'#fff',padding:'10px 14px',borderRadius:'8px',zIndex:'2000'}); document.body.appendChild(n); setTimeout(()=>n.remove(),1600); }
 
 /* ===========================
+   Global button binding
+   =========================== */
+function bindGlobalButtons(){
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('#addTaskHeaderBtn');
+    if (!btn) return;
+    e.preventDefault();
+    const teamName = state.currentTeam || (byId('teamName')?.textContent || '').trim();
+    if (!teamName) { toast('to add a task, please enter the team room first'); return; }
+    showAddTaskModal(teamName);
+  });
+}
+
+/* ===========================
    Wire up
    =========================== */
 window.previousStep=previousStep; window.nextStep=nextStep; window.selectOption=selectOption;
 window.focusTagInput=focusTagInput; window.handleTeamInput=handleTeamInput; window.handleCategoryInput=handleCategoryInput;
 
 document.addEventListener('DOMContentLoaded', ()=>{ 
-  gotoStep(0); 
+  gotoStep(0);
+  bindGlobalButtons();
 });
+
+/* ==== Ultra-stable inline hook for the header +Add Task button ==== */
+window.__openAddTask = function(){
+  try{
+    const teamName = state.currentTeam || (byId('teamName')?.textContent || '').trim();
+    if(!teamName){ toast('Please enter a team first'); return; }
+    showAddTaskModal(teamName);
+  }catch(err){
+    console.error('openAddTask error', err);
+    alert('Add Task failed: ' + err.message);
+  }
+};
