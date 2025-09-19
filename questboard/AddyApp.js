@@ -257,7 +257,11 @@ function openTeam(teamName){
     info.append(nm,rl); card.append(av,info); list.appendChild(card);
   });
 
-  // קישור כפתור Add Task
+  renderBoard(teamName); 
+  enableDnD(teamName);
+  showScreen('team');
+
+  // קישור כפתורים - אחרי showScreen
   const addTaskBtn = byId('addTaskHeaderBtn');
   if (addTaskBtn) {
     addTaskBtn.onclick = () => showAddTaskModal(teamName);
@@ -265,9 +269,6 @@ function openTeam(teamName){
 
   byId('manageEventsBtn').onclick=()=>showManageEventsModal(teamName);
   byId('backButton').onclick=()=>{ showScreen('platform'); renderPlatformForUser(); updateTeamPointsDisplay(); };
-
-  renderBoard(teamName); enableDnD(teamName);
-  showScreen('team');
 
   const toggle = byId('beltToggle');
   toggle.onclick = ()=>{
