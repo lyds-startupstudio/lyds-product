@@ -257,7 +257,12 @@ function openTeam(teamName){
     info.append(nm,rl); card.append(av,info); list.appendChild(card);
   });
 
-  byId('addTaskHeaderBtn').onclick=()=>showAddTaskModal(teamName);
+  // קישור כפתור Add Task
+  const addTaskBtn = byId('addTaskHeaderBtn');
+  if (addTaskBtn) {
+    addTaskBtn.onclick = () => showAddTaskModal(teamName);
+  }
+
   byId('manageEventsBtn').onclick=()=>showManageEventsModal(teamName);
   byId('backButton').onclick=()=>{ showScreen('platform'); renderPlatformForUser(); updateTeamPointsDisplay(); };
 
@@ -322,6 +327,17 @@ function renderTaskCard(task, team, mini=false, isClone=false){
   const statusText=document.createElement('div'); statusText.className='task-status-text'; statusText.textContent='Status: '+prettyStatus(task.status);
   statusRow.appendChild(statusText);
 
+  // due tag
+  if(task.due){
+    const d=document.createElement('span'); d.className='pill'; d.textContent='due: '+task.due;
+    statusRow.appendChild(d);
+  }
+  // role tag (if assigned by role only)
+  if(task.assigneeRole && !task.assigneeId){
+    const r=document.createElement('span'); r.className='pill'; r.textContent='for: '+task.assigneeRole;
+    statusRow.appendChild(r);
+  }
+
   if(task.status==='waiting'){ const b=document.createElement('span'); b.className='pill pill--warning'; b.textContent='Waiting senior'; statusRow.appendChild(b); }
   if(task.status==='done'){ const b=document.createElement('span'); b.className='pill pill--success'; b.textContent='Approved'; statusRow.appendChild(b); }
 
@@ -333,6 +349,7 @@ function renderTaskCard(task, team, mini=false, isClone=false){
   const asg=document.createElement('div'); asg.className='task-assignee';
   const assignee=state.avatars.find(a=>a.id===task.assigneeId);
   asg.textContent=assignee?assignee.emoji:'•';
+  if(task.assigneeRole && !assignee){ asg.title = 'Role: '+task.assigneeRole; }
   footer.append(pts,asg); card.appendChild(footer);
 
   const user=getCurrentUser(); const lead=user && isLead(user);
@@ -409,26 +426,71 @@ function enableDnD(teamName){
 function showAddTaskModal(teamName){
   ensureTeamExists(teamName);
   const team=state.teams[teamName];
+
+  // Build options for members
+  const memberOptions = team.members.map(id=>{
+    const a=state.avatars.find(v=>v.id===id);
+    const nm = a ? a.name : id;
+    return `<option value="${id}">${nm}</option>`;
+  }).join('');
+
   const modal=buildModal('Add New Task',(body,close)=>{
     body.innerHTML=`
       <form id="addTaskForm" class="modal-form">
         <div class="form-group"><label>Task Title</label><input id="taskTitle" class="form-control" required></div>
         <div class="form-group"><label>Description</label><textarea id="taskDescription" class="form-control" rows="3"></textarea></div>
+
+        <div class="form-group"><label>Due date</label>
+          <input id="taskDue" type="date" class="form-control">
+        </div>
+
+        <div class="form-group"><label>Assignee (optional)</label>
+          <select id="taskAssignee" class="form-control">
+            <option value="">— Choose member (optional) —</option>
+            ${memberOptions}
+          </select>
+        </div>
+
+        <div class="form-group"><label>Or by Role (optional)</label>
+          <input id="taskAssigneeRole" class="form-control" placeholder="e.g., QA, Team Lead, Designer">
+        </div>
+
         <div class="form-group"><label>Priority</label>
           <select id="taskPriority" class="form-control">
             <option value="medium" selected>Medium</option><option value="high">High</option><option value="low">Low</option>
           </select></div>
-        <div class="form-group"><label>Points</label><input id="taskPoints" type="number" class="form-control" min="1" max="500" value="10"></div>
-        <div class="modal-buttons"><button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button><button type="submit" class="btn btn-primary">Add Task</button></div>
+
+        <div class="form-group"><label>Points</label>
+          <input id="taskPoints" type="number" class="form-control" min="1" max="500" value="10">
+        </div>
+
+        <div class="modal-buttons">
+          <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Task</button>
+        </div>
       </form>`;
     byId('cancelBtn').onclick=close;
-    byId('addTaskForm').onsubmit=(e)=>{ e.preventDefault();
+
+    byId('addTaskForm').onsubmit=(e)=>{ 
+      e.preventDefault();
       const title = byId('taskTitle').value.trim();
       if(!title){ toast('Please enter task title'); return; }
-      const task={ id:'tsk_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
-        title, description:byId('taskDescription').value.trim(),
-        priority:byId('taskPriority').value, points:Number(byId('taskPoints').value)||0,
-        assigneeId:null, status:'backlog' };
+
+      const chosenAssignee = byId('taskAssignee').value || null;
+      const roleText = byId('taskAssigneeRole').value.trim() || null;
+
+      const task={
+        id:'tsk_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+        title,
+        description:byId('taskDescription').value.trim(),
+        priority:byId('taskPriority').value,
+        points:Number(byId('taskPoints').value)||0,
+        due: byId('taskDue').value || null,
+        assigneeId: chosenAssignee,
+        assigneeRole: roleText,
+        status:'backlog'
+      };
+
       team.tasks.push(task);
       close();
       renderBoard(teamName);
@@ -499,14 +561,7 @@ function toast(msg){ const n=document.createElement('div'); n.textContent=msg; O
    =========================== */
 window.previousStep=previousStep; window.nextStep=nextStep; window.selectOption=selectOption;
 window.focusTagInput=focusTagInput; window.handleTeamInput=handleTeamInput; window.handleCategoryInput=handleCategoryInput;
-document.addEventListener('DOMContentLoaded', ()=>{ gotoStep(0); });
 
-/* ✅ חיזוק חיבור הכפתור Add Task גם אם משהו מנטרל מאזינים */
-document.addEventListener('click', (ev)=>{
-  if(ev.target && ev.target.id === 'addTaskHeaderBtn'){
-    ev.preventDefault();
-    const tn = state.currentTeam;
-    if(!tn){ toast('Open a team first'); return; }
-    showAddTaskModal(tn);
-  }
+document.addEventListener('DOMContentLoaded', ()=>{ 
+  gotoStep(0); 
 });
