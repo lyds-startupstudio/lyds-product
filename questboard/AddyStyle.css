@@ -228,3 +228,65 @@ html,body{margin:0;padding:0;font-family:var(--font);color:var(--color-slate-900
 .manage-events-btn:hover {
   background: #d1d5db;
 }
+
+/* Task Details Modal */
+.task-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.task-detail-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.task-detail-status {
+  background: #f3f4f6;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.task-detail-section {
+  margin-bottom: 12px;
+}
+
+.task-detail-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.task-detail-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.task-detail-text {
+  font-size: 14px;
+  color: #111827;
+  margin: 0;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}

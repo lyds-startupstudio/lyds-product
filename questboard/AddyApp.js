@@ -1,5 +1,5 @@
 /* ===========================
-   QuestBoard - app.js (Full)
+   QuestBoard - app.js (Clean & Fixed)
    =========================== */
 
 /** Global state **/
@@ -20,7 +20,10 @@ const byId=(id)=>document.getElementById(id);
 
 /** Screens **/
 const screens={ setup:byId('setupScreen'), avatar:byId('avatarScreen'), platform:byId('platformScreen'), team:byId('teamScreen') };
-function showScreen(k){ $$('.screen').forEach(s=>s.classList.remove('active')); screens[k].classList.add('active'); }
+function showScreen(k){
+  $$('.screen').forEach(s=>s.classList.remove('active'));
+  if (screens[k]) screens[k].classList.add('active');
+}
 
 /* ===========================
    Setup Wizard
@@ -31,10 +34,15 @@ function currentSteps(){ return stepsOrder[state.setup.userType||'personal']; }
 function gotoStep(i){
   $$('.step').forEach(st=>st.classList.remove('active'));
   currentStepIndex=Math.max(0,Math.min(i,currentSteps().length-1));
-  byId(currentSteps()[currentStepIndex])?.classList.add('active');
-  byId('prevBtn').style.display=currentStepIndex===0?'none':'inline-flex';
-  byId('nextBtn').disabled=!isCurrentStepValid();
-  byId('progressFill').style.width=((currentStepIndex+1)/currentSteps().length)*100+'%';
+  const stepId = currentSteps()[currentStepIndex];
+  const stepEl = byId(stepId);
+  if(stepEl) stepEl.classList.add('active');
+  const prevBtn = byId('prevBtn');
+  const nextBtn = byId('nextBtn');
+  const progressFill = byId('progressFill');
+  if(prevBtn) prevBtn.style.display=currentStepIndex===0?'none':'inline-flex';
+  if(nextBtn) nextBtn.disabled=!isCurrentStepValid();
+  if(progressFill) progressFill.style.width=((currentStepIndex+1)/currentSteps().length)*100+'%';
 }
 function isCurrentStepValid(){
   const id=currentSteps()[currentStepIndex];
@@ -46,104 +54,170 @@ function isCurrentStepValid(){
   return true;
 }
 function previousStep(){ gotoStep(currentStepIndex-1); }
-function nextStep(){ if(!isCurrentStepValid()) return; if(currentStepIndex===currentSteps().length-1){ prepareAvatarScreen(); showScreen('avatar'); return; } gotoStep(currentStepIndex+1); }
+function nextStep(){
+  if(!isCurrentStepValid()) return;
+  if(currentStepIndex===currentSteps().length-1){
+    prepareAvatarScreen(); showScreen('avatar'); return;
+  }
+  gotoStep(currentStepIndex+1);
+}
 function selectOption(field,val,el){
   if(field==='userType'){ state.setup.userType=val; state.setup.businessType=null; state.setup.personalPurpose=null; }
   else if(field==='businessType'){ state.setup.businessType=val; }
   else if(field==='personalPurpose'){ state.setup.personalPurpose=val; }
-  if(el?.parentElement){ el.parentElement.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected')); el.classList.add('selected'); }
-  byId('nextBtn').disabled=!isCurrentStepValid();
+  if(el?.parentElement){
+    el.parentElement.querySelectorAll('.option-card').forEach(c=>c.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+  const nextBtn = byId('nextBtn'); if(nextBtn) nextBtn.disabled=!isCurrentStepValid();
 }
-function focusTagInput(){ const inputs=$$('.tag-input'); inputs.find(i=>i.closest('.step').classList.contains('active'))?.focus(); }
+function focusTagInput(){
+  const inputs=$$('.tag-input');
+  const active = inputs.find(i=>i.closest('.step')?.classList.contains('active'));
+  active?.focus();
+}
 function createTag(label, container, onRemove){
   const tag=document.createElement('span'); tag.className='tag'; tag.textContent=label;
   const x=document.createElement('button'); x.className='tag-remove'; x.type='button'; x.textContent='×';
-  x.addEventListener('click',()=>{ container.removeChild(tag); onRemove?.(); byId('nextBtn').disabled=!isCurrentStepValid(); });
-  tag.appendChild(x); container.appendChild(tag);
+  x.addEventListener('click',()=>{
+    if (container?.contains(tag)) container.removeChild(tag);
+    onRemove?.();
+    const nextBtn = byId('nextBtn'); if(nextBtn) nextBtn.disabled=!isCurrentStepValid();
+  });
+  tag.appendChild(x); container?.appendChild(tag);
 }
-function handleTeamInput(e){ if(e.key==='Enter'){ e.preventDefault(); const v=e.target.value.trim(); if(!v) return;
-  if(!state.setup.teams.includes(v)){ state.setup.teams.push(v); createTag(v, byId('teamTags'), ()=>{ state.setup.teams=state.setup.teams.filter(t=>t!==v); }); }
-  e.target.value=''; byId('nextBtn').disabled=!isCurrentStepValid(); } }
-function handleCategoryInput(e){ if(e.key==='Enter'){ e.preventDefault(); const v=e.target.value.trim(); if(!v) return;
-  if(!state.setup.categories.includes(v)){ state.setup.categories.push(v); createTag(v, byId('categoryTags'), ()=>{ state.setup.categories=state.setup.categories.filter(t=>t!==v); }); }
-  e.target.value=''; byId('nextBtn').disabled=!isCurrentStepValid(); } }
+function handleTeamInput(e){
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const v=e.target.value.trim(); if(!v) return;
+    if(!state.setup.teams.includes(v)){
+      state.setup.teams.push(v);
+      createTag(v, byId('teamTags'), ()=>{ state.setup.teams=state.setup.teams.filter(t=>t!==v); });
+    }
+    e.target.value='';
+    const nextBtn = byId('nextBtn'); if(nextBtn) nextBtn.disabled=!isCurrentStepValid();
+  }
+}
+function handleCategoryInput(e){
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const v=e.target.value.trim(); if(!v) return;
+    if(!state.setup.categories.includes(v)){
+      state.setup.categories.push(v);
+      createTag(v, byId('categoryTags'), ()=>{ state.setup.categories=state.setup.categories.filter(t=>t!==v); });
+    }
+    e.target.value='';
+    const nextBtn = byId('nextBtn'); if(nextBtn) nextBtn.disabled=!isCurrentStepValid();
+  }
+}
 
 /* ===========================
    Avatar Creation
    =========================== */
-const DEFAULT_AVATARS=['🧙‍♂️','🧛‍♀️','🤖','🧑‍🚀','🧟‍♂️','🧛‍♀️','🧜‍♀️','🧑‍🔬','🦸‍♂️','🦹‍♀️','🐉','🐺','🦄','🐵','🐸','🐯'];
+const DEFAULT_AVATARS=['🧙‍♂️','🧛‍♀️','🤖','🧑‍🚀','🧟‍♂️','🧛‍♀️','🧜‍♀️','🧑‍🔬','🦸‍♂️','🦹‍♀️','🐉','🦺','🦄','🐵','🐸','🐯'];
 
 function prepareAvatarScreen(){
   const isBiz = state.setup.userType==='business';
   const group = byId('teamSelectionGroup');
   const select= byId('userTeam');
-  group.style.display = isBiz ? 'block':'none';
-  if(isBiz) select.innerHTML = `<option value="">Select your team</option>` + state.setup.teams.map(t=>`<option value="${t}">${t}</option>`).join('');
+  if(group) group.style.display = isBiz ? 'block':'none';
+  if(isBiz && select) select.innerHTML = `<option value="">Select your team</option>` + state.setup.teams.map(t=>`<option value="${t}">${t}</option>`).join('');
 
-  const grid=byId('avatarGrid'); grid.innerHTML=''; let selected=null;
-  DEFAULT_AVATARS.forEach(emo=>{ const el=document.createElement('div'); el.className='avatar-option'; el.textContent=emo;
-    el.onclick=()=>{ grid.querySelectorAll('.avatar-option').forEach(n=>n.classList.remove('selected')); el.classList.add('selected'); selected=emo; };
-    grid.appendChild(el); });
+  const grid=byId('avatarGrid'); if(grid) grid.innerHTML='';
+  let selected=null;
+  DEFAULT_AVATARS.forEach(emo=>{
+    const el=document.createElement('div'); el.className='avatar-option'; el.textContent=emo;
+    el.onclick=()=>{ grid?.querySelectorAll('.avatar-option').forEach(n=>n.classList.remove('selected')); el.classList.add('selected'); selected=emo; };
+    grid?.appendChild(el);
+  });
 
   const goBack = ()=>{ if(state.avatars.length>0){ showScreen('platform'); renderPlatformForUser(); } else { showScreen('setup'); gotoStep(0); } };
-  byId('avatarBackBtn').onclick = goBack;
-  byId('cancelAvatarBtn').onclick = goBack;
+  const avatarBackBtn = byId('avatarBackBtn');
+  const cancelAvatarBtn = byId('cancelAvatarBtn');
+  if(avatarBackBtn) avatarBackBtn.onclick = goBack;
+  if(cancelAvatarBtn) cancelAvatarBtn.onclick = goBack;
 
-  byId('avatarForm').onsubmit=(e)=>{
-    e.preventDefault();
-    const name=byId('userName').value.trim();
-    const role=byId('jobTitle').value.trim();
-    const team=isBiz ? byId('userTeam').value : null;
-    if(!name||!role) return;
-    const id = 'avt_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-    const avatar = { id, name, role, emoji:selected||DEFAULT_AVATARS[0], team, isTeamLead:false };
-    state.avatars.push(avatar);
-    state.currentUserId=id;
+  const form = byId('avatarForm');
+  if(form){
+    form.onsubmit=(e)=>{
+      e.preventDefault();
+      const name=byId('userName')?.value.trim();
+      const role=byId('jobTitle')?.value.trim();
+      const team=isBiz ? byId('userTeam')?.value : null;
+      if(!name||!role) return;
+      const id = 'avt_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+      const avatar = { id, name, role, emoji:selected||DEFAULT_AVATARS[0], team, isTeamLead:false };
+      state.avatars.push(avatar);
+      state.currentUserId=id;
 
-    if(team) ensureTeamExists(team);
-    if(team){ state.teams[team].members.push(id); if(!state.teams[team].leadId){ state.teams[team].leadId=id; avatar.isTeamLead=true; } }
+      if(team) ensureTeamExists(team);
+      if(team){
+        state.teams[team].members.push(id);
+        if(!state.teams[team].leadId){ state.teams[team].leadId=id; avatar.isTeamLead=true; }
+      }
 
-    renderPlatformForUser(); showScreen('platform'); e.target.reset();
-  };
+      renderPlatformForUser(); showScreen('platform'); form.reset();
+    };
+  }
 }
 
-function ensureTeamExists(name){ if(!state.teams[name]) state.teams[name]={ name, members:[], tasks:[], events:[], leadId:null, awardedPoints:0 }; }
+function ensureTeamExists(name){
+  if(!state.teams[name]) state.teams[name]={ name, members:[], tasks:[], events:[], leadId:null, awardedPoints:0 };
+}
 
 /* ===========================
    Platform (Office)
    =========================== */
 function renderPlatformForUser(){
   const u=getCurrentUser(); if(!u) return;
-  byId('navUserAvatar').textContent=u.emoji;
-  byId('navUserName').textContent=u.name;
-  byId('navUserRole').textContent=u.role;
+  const navUserAvatar = byId('navUserAvatar');
+  const navUserName = byId('navUserName');
+  const navUserRole = byId('navUserRole');
+  if(navUserAvatar) navUserAvatar.textContent=u.emoji;
+  if(navUserName) navUserName.textContent=u.name;
+  if(navUserRole) navUserRole.textContent=u.role;
 
   const char=byId('userCharacter');
-  char.querySelector('.character-avatar').textContent=u.emoji;
-  char.querySelector('.character-name').textContent=u.name;
+  if(char){
+    const ca = char.querySelector('.character-avatar');
+    const cn = char.querySelector('.character-name');
+    if(ca) ca.textContent=u.emoji;
+    if(cn) cn.textContent=u.name;
+  }
 
   renderTeamRooms();
   renderSidebar();
   updateTeamPointsDisplay();
 
-  byId('createNewAvatarBtn').onclick=()=>{ stopOfficeControls(); prepareAvatarScreen(); showScreen('avatar'); };
+  const createNewAvatarBtn = byId('createNewAvatarBtn');
+  if(createNewAvatarBtn) createNewAvatarBtn.onclick=()=>{ stopOfficeControls(); prepareAvatarScreen(); showScreen('avatar'); };
 
   startOfficeControls();
 }
 function getCurrentUser(){ return state.avatars.find(a=>a.id===state.currentUserId)||null; }
-function updateTeamPointsDisplay(){ const u=getCurrentUser(); let t=0; if(u?.team && state.teams[u.team]) t=state.teams[u.team].awardedPoints||0; byId('teamPoints').textContent=t; }
+function updateTeamPointsDisplay(){
+  const u=getCurrentUser(); let t=0;
+  if(u?.team && state.teams[u.team]) t=state.teams[u.team].awardedPoints||0;
+  const teamPoints = byId('teamPoints'); if(teamPoints) teamPoints.textContent=t;
+}
 
 function renderTeamRooms(){
-  const c=byId('teamRoomsContainer'); c.innerHTML='';
-  const teams=state.setup.teams; const cols=Math.min(4,Math.max(2,Math.ceil(Math.sqrt(teams.length||1))));
+  const c=byId('teamRoomsContainer'); if(!c) return;
+  c.innerHTML='';
+  const teams=state.setup.teams;
+  const cols=Math.min(4,Math.max(2,Math.ceil(Math.sqrt(teams.length||1))));
   const cellW=240, cellH=190, startX=60, startY=60;
 
-  teams.forEach((t,i)=>{ ensureTeamExists(t);
+  teams.forEach((t,i)=>{
+    ensureTeamExists(t);
     const el=document.createElement('div'); el.className='team-room'; el.dataset.team=t;
     el.style.borderColor=['#4F46E5','#10B981','#F59E0B','#EF4444','#6366F1','#06B6D4'][i%6];
     const title=Object.assign(document.createElement('div'),{className:'room-header',textContent:t});
     const members=Object.assign(document.createElement('div'),{className:'room-members'});
-    state.teams[t].members.slice(0,5).forEach(id=>{ const a=state.avatars.find(v=>v.id===id); if(!a) return; const m=document.createElement('div'); m.className='room-member'; m.textContent=a.emoji; members.appendChild(m); });
+    state.teams[t].members.slice(0,5).forEach(id=>{
+      const a=state.avatars.find(v=>v.id===id); if(!a) return;
+      const m=document.createElement('div'); m.className='room-member'; m.textContent=a.emoji; members.appendChild(m);
+    });
     const enter=Object.assign(document.createElement('div'),{className:'room-enter',textContent:'Press E to enter'});
     el.append(title,members,enter);
     const r=Math.floor(i/cols), col=i%cols; el.style.left=(startX+col*cellW)+'px'; el.style.top=(startY+r*cellH)+'px';
@@ -155,23 +229,29 @@ function renderTeamRooms(){
 /* Sidebar */
 function renderSidebar(){
   const teamList=byId('sidebarTeamList');
-  teamList.innerHTML = state.setup.teams.map(t=>`<div class="team-item" data-team="${t}">${t}</div>`).join('') || `<div class="empty">No teams yet</div>`;
-  teamList.querySelectorAll('.team-item').forEach(el=> el.onclick=()=>openTeam(el.dataset.team));
+  if(teamList){
+    teamList.innerHTML = state.setup.teams.map(t=>`<div class="team-item" data-team="${t}">${t}</div>`).join('') || `<div class="empty">No teams yet</div>`;
+    teamList.querySelectorAll('.team-item').forEach(el=> el.onclick=()=>openTeam(el.dataset.team));
+  }
 
   const search=byId('employeeSearch'), list=byId('sidebarEmployeeList');
-  const refresh=()=>{ const q=(search.value||'').toLowerCase();
+  const refresh=()=>{
+    const q=(search?.value||'').toLowerCase();
     const filtered=state.avatars.filter(a=>a.name.toLowerCase().includes(q));
-    list.innerHTML = filtered.map(a=>`
-      <div class="employee-item" data-id="${a.id}">
-        <div class="emp-avatar">${a.emoji}</div>
-        <div class="emp-info">
-          <div class="emp-name">${a.name}${isLead(a)?' <span class="lead-star">⭐</span>':''}</div>
-          <div class="emp-meta">${a.role}${a.team?' · '+a.team:''}</div>
-        </div>
-      </div>`).join('') || `<div class="empty">No employees</div>`;
-    list.querySelectorAll('.employee-item').forEach(el=> el.onclick=()=>openEmployeeProfile(el.dataset.id));
+    if(list){
+      list.innerHTML = filtered.map(a=>`
+        <div class="employee-item" data-id="${a.id}">
+          <div class="emp-avatar">${a.emoji}</div>
+          <div class="emp-info">
+            <div class="emp-name">${a.name}${isLead(a)?' <span class="lead-star">⭐</span>':''}</div>
+            <div class="emp-meta">${a.role}${a.team?' · '+a.team:''}</div>
+          </div>
+        </div>`).join('') || `<div class="empty">No employees</div>`;
+      list.querySelectorAll('.employee-item').forEach(el=> el.onclick=()=>openEmployeeProfile(el.dataset.id));
+    }
   };
-  search.oninput=refresh; refresh();
+  if(search) search.oninput=refresh;
+  refresh();
 }
 function isLead(avatar){
   const team = avatar.team && state.teams[avatar.team];
@@ -187,7 +267,10 @@ function openEmployeeProfile(id){
       <div class="modal-form">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <div style="font-size:40px">${a.emoji}</div>
-          <div><div style="font-weight:600;font-size:16px;">${a.name}</div><div style="color:var(--color-text-secondary);font-size:12px;">ID: ${a.id}</div></div>
+          <div>
+            <div style="font-weight:600;font-size:16px;">${a.name}</div>
+            <div style="color:var(--color-text-secondary);font-size:12px;">ID: ${a.id}</div>
+          </div>
         </div>
         <div class="profile-row"><span>Role</span><strong>${a.role}</strong></div>
         <div class="profile-row"><span>Team</span><strong>${a.team||'—'}</strong></div>
@@ -223,19 +306,34 @@ function startOfficeControls(){
   function near(){
     const rooms=$$('.team-room'); const cr=ch.getBoundingClientRect(); const mr=map.getBoundingClientRect();
     const cc={x:cr.left-mr.left+cr.width/2,y:cr.top-mr.top+cr.height/2}; let best=null,dist=Infinity;
-    rooms.forEach(rm=>{ const rr=rm.getBoundingClientRect(); const r={left:rr.left-mr.left, top:rr.top-mr.top, right:rr.right-mr.left, bottom:rr.bottom-mr.top};
-      const dx=(cc.x<r.left)?(r.left-cc.x):(cc.x>r.right)?(cc.x-r.right):0; const dy=(cc.y<r.top)?(r.top-cc.y):(cc.y>r.bottom)?(cc.y-r.bottom):0;
-      const d=Math.hypot(dx,dy); const NEAR=28; const hint=rm.querySelector('.room-enter'); if(hint) hint.style.opacity = d<=NEAR?'1':'0';
-      if(d<dist){ dist=d; best = d<=NEAR ? rm : null; } });
+    rooms.forEach(rm=>{
+      const rr=rm.getBoundingClientRect();
+      const r={left:rr.left-mr.left, top:rr.top-mr.top, right:rr.right-mr.left, bottom:rr.bottom-mr.top};
+      const dx=(cc.x<r.left)?(r.left-cc.x):(cc.x>r.right)?(cc.x-r.right):0;
+      const dy=(cc.y<r.top)?(r.top-cc.y):(cc.y>r.bottom)?(cc.y-r.bottom):0;
+      const d=Math.hypot(dx,dy); const NEAR=28;
+      const hint=rm.querySelector('.room-enter'); if(hint) hint.style.opacity = d<=NEAR?'1':'0';
+      if(d<dist){ dist=d; best = d<=NEAR ? rm : null; }
+    });
     state.office.nearTeam = best ? best.dataset.team : null;
   }
 }
-function stopOfficeControls(){ if(state.office.loopId){ cancelAnimationFrame(state.office.loopId); state.office.loopId=null; }
+function stopOfficeControls(){
+  if(state.office.loopId){ cancelAnimationFrame(state.office.loopId); state.office.loopId=null; }
   if(state.office.keydownHandler){ document.removeEventListener('keydown',state.office.keydownHandler); state.office.keydownHandler=null; }
   if(state.office.keyupHandler){ document.removeEventListener('keyup',state.office.keyupHandler); state.office.keyupHandler=null; }
-  $$('.team-room .room-enter').forEach(e=>e.style.opacity='0'); }
-function norm(k){ if(!k) return null; if(k==='ArrowLeft'||k.toLowerCase()==='a')return'left'; if(k==='ArrowRight'||k.toLowerCase()==='d')return'right';
-  if(k==='ArrowUp'||k.toLowerCase()==='w')return'up'; if(k==='ArrowDown'||k.toLowerCase()==='s')return'down'; if(k.toLowerCase()==='e')return'e'; return null; }
+  $$('.team-room .room-enter').forEach(e=>e.style.opacity='0');
+}
+function norm(k){
+  if(!k) return null;
+  const key = k.length===1 ? k.toLowerCase() : k;
+  if(key==='ArrowLeft'||key==='a')return'left';
+  if(key==='ArrowRight'||key==='d')return'right';
+  if(key==='ArrowUp'||key==='w')return'up';
+  if(key==='ArrowDown'||key==='s')return'down';
+  if(key==='e')return'e';
+  return null;
+}
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 
 /* ===========================
@@ -244,43 +342,33 @@ const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const STATUS_ORDER=['backlog','todo','in-progress','waiting','done'];
 
 function openTeam(teamName){
-  state.currentTeam=teamName; 
-  const team=state.teams[teamName]; 
+  state.currentTeam=teamName;
+  const team=state.teams[teamName];
   if(!team) return;
-  
-  stopOfficeControls();
-  byId('teamName').textContent=teamName;
 
-  const list=byId('teamMembersList'); 
+  stopOfficeControls();
+  const tn = byId('teamName'); if(tn) tn.textContent=teamName;
+
+  const list=byId('teamMembersList');
   if (list) {
-    list.innerHTML=''; 
+    list.innerHTML='';
     team.members.forEach(id=>{
-      const a=state.avatars.find(v=>v.id===id); 
+      const a=state.avatars.find(v=>v.id===id);
       if(!a) return;
-      const card=document.createElement('div'); 
-      card.className='team-member';
-      const av=document.createElement('div'); 
-      av.className='member-avatar'; 
-      av.textContent=a.emoji;
-      const info=document.createElement('div'); 
-      info.className='member-info';
-      const nm=document.createElement('div'); 
-      nm.className='member-name'; 
-      nm.textContent=a.name+(isLead(a)?' ⭐':'');
-      const rl=document.createElement('div'); 
-      rl.className='member-role'; 
-      rl.textContent=a.role;
-      info.append(nm,rl); 
-      card.append(av,info); 
-      list.appendChild(card);
+      const card=document.createElement('div'); card.className='team-member';
+      const av=document.createElement('div'); av.className='member-avatar'; av.textContent=a.emoji;
+      const info=document.createElement('div'); info.className='member-info';
+      const nm=document.createElement('div'); nm.className='member-name'; nm.textContent=a.name+(isLead(a)?' ⭐':'');
+      const rl=document.createElement('div'); rl.className='member-role'; rl.textContent=a.role;
+      info.append(nm,rl); card.append(av,info); list.appendChild(card);
     });
   }
 
-  renderBoard(teamName); 
+  renderBoard(teamName);
   enableDnD(teamName);
   showScreen('team');
 
-  // תיקון - קישור הכפתור Add Task
+  // Hook buttons after render
   setTimeout(() => {
     const addTaskBtn = byId('addTaskHeaderBtn');
     if (addTaskBtn) {
@@ -293,7 +381,7 @@ function openTeam(teamName){
 
   const manageBtn = byId('manageEventsBtn');
   if(manageBtn) manageBtn.onclick=()=>showManageEventsModal(teamName);
-  
+
   const backBtn = byId('backButton');
   if(backBtn) backBtn.onclick=()=>{ showScreen('platform'); renderPlatformForUser(); updateTeamPointsDisplay(); };
 
@@ -312,7 +400,12 @@ function renderBoard(teamName){
   const team=state.teams[teamName];
   renderBacklogBelt(team);
 
-  const buckets={ 'todo':byId('todoTasks'), 'in-progress':byId('progressTasks'), 'waiting':byId('waitingTasks'), 'done':byId('doneTasks') };
+  const buckets={
+    'todo':byId('todoTasks'),
+    'in-progress':byId('progressTasks'),
+    'waiting':byId('waitingTasks'),
+    'done':byId('doneTasks')
+  };
   Object.values(buckets).forEach(el=>{ if(el) el.innerHTML=''; });
   const counts={todo:0,'in-progress':0,waiting:0,done:0};
 
@@ -323,18 +416,23 @@ function renderBoard(teamName){
     counts[task.status]=(counts[task.status]||0)+1;
   });
 
-  byId('todoCount').textContent=counts.todo||0;
-  byId('progressCount').textContent=counts['in-progress']||0;
-  byId('waitingCount').textContent=counts.waiting||0;
-  byId('doneCount').textContent=counts.done||0;
+  const todoCount = byId('todoCount');
+  const progressCount = byId('progressCount');
+  const waitingCount = byId('waitingCount');
+  const doneCount = byId('doneCount');
+  if(todoCount) todoCount.textContent=counts.todo||0;
+  if(progressCount) progressCount.textContent=counts['in-progress']||0;
+  if(waitingCount) waitingCount.textContent=counts.waiting||0;
+  if(doneCount) doneCount.textContent=counts.done||0;
 }
 
 function renderBacklogBelt(team){
   const tasks = team.tasks.filter(t=>t.status==='backlog');
-  byId('backlogCount').textContent = tasks.length;
+  const backlogCount = byId('backlogCount'); if(backlogCount) backlogCount.textContent = tasks.length;
 
   const viewport = byId('backlogBeltViewport');
   const track = byId('backlogBeltTrack');
+  if(!viewport || !track) return;
   track.innerHTML='';
 
   tasks.forEach(t=> track.appendChild(renderTaskCard(t, team, true)));
@@ -369,8 +467,12 @@ function renderTaskCard(task, team, mini=false, isClone=false){
   if(task.status==='waiting'){ const b=document.createElement('span'); b.className='pill pill--warning'; b.textContent='Waiting senior'; statusRow.appendChild(b); }
   if(task.status==='done'){ const b=document.createElement('span'); b.className='pill pill--success'; b.textContent='Approved'; statusRow.appendChild(b); }
 
-  if(!mini){ const desc=document.createElement('div'); desc.className='task-description'; desc.textContent=task.description||''; card.append(title,statusRow,desc); }
-  else { card.append(title,statusRow); }
+  if(!mini){
+    const desc=document.createElement('div'); desc.className='task-description'; desc.textContent=task.description||'';
+    card.append(title,statusRow,desc);
+  } else {
+    card.append(title,statusRow);
+  }
 
   const footer=document.createElement('div'); footer.className='task-footer';
   const pts=document.createElement('div'); pts.className='task-points'; pts.textContent=`${task.points??0} pts`;
@@ -383,8 +485,23 @@ function renderTaskCard(task, team, mini=false, isClone=false){
   const user=getCurrentUser(); const lead=user && isLead(user);
   if(task.status==='waiting' && lead){
     const btn=document.createElement('button'); btn.className='approve-button'; btn.textContent='Approve & Done';
-    btn.onclick=()=>{ team.awardedPoints=(team.awardedPoints||0)+(task.points||0); task.status='done'; renderBoard(team.name); enableDnD(team.name); showCelebration(task.points||0); };
+    btn.onclick=(e)=>{
+      e.stopPropagation(); // לא לפתוח מודאל בפרטי משימה
+      team.awardedPoints=(team.awardedPoints||0)+(task.points||0);
+      task.status='done';
+      renderBoard(team.name);
+      enableDnD(team.name);
+      showCelebration(task.points||0);
+    };
     card.appendChild(btn);
+  }
+
+  // אל תפתח מודאל לפרטי משימה עבור קלונים של ה-Belt
+  if(!isClone){
+    card.onclick=(e)=>{
+      if(e.target.classList.contains('approve-button')) return;
+      showTaskDetailsModal(task, team);
+    };
   }
 
   return card;
@@ -466,31 +583,46 @@ function showAddTaskModal(teamName){
   const modal=buildModal('Add New Task',(body,close)=>{
     body.innerHTML=`
       <form id="addTaskForm" class="modal-form">
-        <div class="form-group"><label>Task Title</label><input id="taskTitle" class="form-control" required></div>
-        <div class="form-group"><label>Description</label><textarea id="taskDescription" class="form-control" rows="3"></textarea></div>
-
-        <div class="form-group"><label>Due date</label>
-          <input id="taskDue" type="date" class="form-control">
+        <div class="form-group">
+          <label>Task Title</label>
+          <input id="taskTitle" class="form-control" required />
         </div>
 
-        <div class="form-group"><label>Assignee (optional)</label>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="taskDescription" class="form-control" rows="3"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Due date</label>
+          <input id="taskDue" type="date" class="form-control" />
+        </div>
+
+        <div class="form-group">
+          <label>Assignee (optional)</label>
           <select id="taskAssignee" class="form-control">
             <option value="">— Choose member (optional) —</option>
             ${memberOptions}
           </select>
         </div>
 
-        <div class="form-group"><label>Or by Role (optional)</label>
-          <input id="taskAssigneeRole" class="form-control" placeholder="e.g., QA, Team Lead, Designer">
+        <div class="form-group">
+          <label>Or by Role (optional)</label>
+          <input id="taskAssigneeRole" class="form-control" placeholder="e.g., QA, Team Lead, Designer" />
         </div>
 
-        <div class="form-group"><label>Priority</label>
+        <div class="form-group">
+          <label>Priority</label>
           <select id="taskPriority" class="form-control">
-            <option value="medium" selected>Medium</option><option value="high">High</option><option value="low">Low</option>
-          </select></div>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
 
-        <div class="form-group"><label>Points</label>
-          <input id="taskPoints" type="number" class="form-control" min="1" max="500" value="10">
+        <div class="form-group">
+          <label>Points</label>
+          <input id="taskPoints" type="number" class="form-control" min="1" max="500" value="10" />
         </div>
 
         <div class="modal-buttons">
@@ -498,29 +630,27 @@ function showAddTaskModal(teamName){
           <button type="submit" class="btn btn-primary">Add Task</button>
         </div>
       </form>`;
-    
-    // תיקון - השימוש ב-setTimeout כדי לוודא שהאלמנטים קיימים
+
     setTimeout(() => {
-      const cancelBtn = byId('cancelBtn');
-      if (cancelBtn) cancelBtn.onclick = close;
+      const cancelBtn = byId('cancelBtn'); if (cancelBtn) cancelBtn.onclick = close;
 
       const addTaskForm = byId('addTaskForm');
       if (addTaskForm) {
-        addTaskForm.onsubmit = (e) => { 
+        addTaskForm.onsubmit = (e) => {
           e.preventDefault();
-          const title = byId('taskTitle').value.trim();
+          const title = byId('taskTitle')?.value.trim();
           if(!title){ toast('Please enter task title'); return; }
 
-          const chosenAssignee = byId('taskAssignee').value || null;
-          const roleText = byId('taskAssigneeRole').value.trim() || null;
+          const chosenAssignee = byId('taskAssignee')?.value || null;
+          const roleText = byId('taskAssigneeRole')?.value.trim() || null;
 
           const task={
             id:'tsk_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
             title,
-            description:byId('taskDescription').value.trim(),
-            priority:byId('taskPriority').value,
-            points:Number(byId('taskPoints').value)||0,
-            due: byId('taskDue').value || null,
+            description:byId('taskDescription')?.value.trim() || '',
+            priority:byId('taskPriority')?.value || 'medium',
+            points:Number(byId('taskPoints')?.value)||0,
+            due: byId('taskDue')?.value || null,
             assigneeId: chosenAssignee,
             assigneeRole: roleText,
             status:'backlog'
@@ -539,25 +669,34 @@ function showAddTaskModal(teamName){
 
 function promptAssignMember(team, onAssign, onCancel){
   const modal=buildModal('Assign Task',(body,close)=>{
-    const options = team.members.map(id=>{ const a=state.avatars.find(v=>v.id===id); return `<label class="assign-row"><input type="radio" name="assignee" value="${id}"><span>${a?.name||id}</span></label>`; }).join('') || '<div>No members</div>';
+    const options = team.members.map(id=>{
+      const a=state.avatars.find(v=>v.id===id);
+      return `<label class="assign-row"><input type="radio" name="assignee" value="${id}"><span>${a?.name||id}</span></label>`;
+    }).join('') || '<div>No members</div>';
     body.innerHTML=`
       <form id="assignForm" class="modal-form">
-        <div class="form-group"><label>Select member</label><div class="assign-list">${options}</div></div>
-        <div class="modal-buttons"><button type="button" id="cancelAssign" class="btn btn-secondary">Cancel</button><button type="submit" class="btn btn-primary">Assign</button></div>
+        <div class="form-group">
+          <label>Select member</label>
+          <div class="assign-list">${options}</div>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" id="cancelAssign" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Assign</button>
+        </div>
       </form>`;
-    
+
     setTimeout(() => {
       const cancelAssignBtn = byId('cancelAssign');
       if(cancelAssignBtn) cancelAssignBtn.onclick=()=>{ close(); onCancel?.(); };
-      
+
       const assignForm = byId('assignForm');
       if(assignForm) {
-        assignForm.onsubmit=(e)=>{ 
-          e.preventDefault(); 
-          const chosen = body.querySelector('input[name="assignee"]:checked')?.value; 
-          if(!chosen) return; 
-          close(); 
-          onAssign?.(chosen); 
+        assignForm.onsubmit=(e)=>{
+          e.preventDefault();
+          const chosen = body.querySelector('input[name="assignee"]:checked')?.value;
+          if(!chosen) return;
+          close();
+          onAssign?.(chosen);
         };
       }
     }, 0);
@@ -568,7 +707,7 @@ function promptAssignMember(team, onAssign, onCancel){
 function showManageEventsModal(teamName){
   const team=state.teams[teamName];
   const modal=buildModal('Manage Point Events',(body,close)=>{
-    const render=()=>{ 
+    const render=()=>{
       const list=byId('eventsListDyn');
       if(list) {
         list.innerHTML = team.events.map(ev=>`
@@ -576,7 +715,9 @@ function showManageEventsModal(teamName){
             <div><strong>${ev.name}</strong> • ${ev.points} pts</div>
             <button data-id="${ev.id}" class="btn btn-secondary btn-sm">Delete</button>
           </div>`).join('') || `<div style="color:var(--color-text-secondary);">No events yet.</div>`;
-        list.querySelectorAll('button[data-id]').forEach(b=> b.onclick=()=>{ const id=b.getAttribute('data-id'); team.events=team.events.filter(e=>e.id!==id); render(); });
+        list.querySelectorAll('button[data-id]').forEach(b=> b.onclick=()=>{
+          const id=b.getAttribute('data-id'); team.events=team.events.filter(e=>e.id!==id); render();
+        });
       }
     };
     body.innerHTML=`
@@ -587,23 +728,23 @@ function showManageEventsModal(teamName){
         <div class="form-group"><label>Points</label><input id="eventPoints" type="number" class="form-control" min="1" max="500" value="10"></div>
         <div class="modal-buttons"><button id="cancelEvents" class="btn btn-secondary">Close</button><button id="addEventBtn" class="btn btn-primary">Add Event</button></div>
       </div>`;
-    
+
     setTimeout(() => {
       const cancelEventsBtn = byId('cancelEvents');
       if(cancelEventsBtn) cancelEventsBtn.onclick=close;
-      
+
       const addEventBtn = byId('addEventBtn');
       if(addEventBtn) {
-        addEventBtn.onclick=()=>{ 
-          const name=byId('eventName')?.value.trim(); 
-          const pts=Number(byId('eventPoints')?.value)||0; 
-          if(!name||pts<=0) return; 
-          team.events.push({id:'evt_'+Date.now(),name,points:pts}); 
+        addEventBtn.onclick=()=>{
+          const name=byId('eventName')?.value.trim();
+          const pts=Number(byId('eventPoints')?.value)||0;
+          if(!name||pts<=0) return;
+          team.events.push({id:'evt_'+Date.now(),name,points:pts});
           const eventNameInput = byId('eventName');
           const eventPointsInput = byId('eventPoints');
-          if(eventNameInput) eventNameInput.value=''; 
-          if(eventPointsInput) eventPointsInput.value='10'; 
-          render(); 
+          if(eventNameInput) eventNameInput.value='';
+          if(eventPointsInput) eventPointsInput.value='10';
+          render();
         };
       }
       render();
@@ -612,21 +753,82 @@ function showManageEventsModal(teamName){
   document.body.appendChild(modal);
 }
 
-function buildModal(title, mount){ 
+function showTaskDetailsModal(task, team){
+  const assignee = state.avatars.find(a=>a.id===task.assigneeId);
+  const dueSection = task.due ? `
+    <div class="task-detail-section">
+      <label class="task-detail-label">Due Date</label>
+      <p class="task-detail-text">${task.due}</p>
+    </div>` : '';
+
+  const modal=buildModal('Task Details',(body,close)=>{
+    body.innerHTML=`
+      <div class="modal-form">
+        <div class="task-detail-header">
+          <h3 class="task-detail-title">${task.title}</h3>
+          <span class="task-detail-status">${prettyStatus(task.status)}</span>
+        </div>
+        <div class="task-detail-section">
+          <label class="task-detail-label">Description</label>
+          <p class="task-detail-text">${task.description || 'No description'}</p>
+        </div>
+        <div class="task-detail-row">
+          <div class="task-detail-section">
+            <label class="task-detail-label">Points</label>
+            <p class="task-detail-text">${task.points || 0}</p>
+          </div>
+          <div class="task-detail-section">
+            <label class="task-detail-label">Priority</label>
+            <p class="task-detail-text">${task.priority || 'medium'}</p>
+          </div>
+        </div>
+        ${dueSection}
+        <div class="task-detail-section">
+          <label class="task-detail-label">Assigned To</label>
+          <p class="task-detail-text">
+            ${assignee ? `${assignee.emoji} ${assignee.name}` : (task.assigneeRole ? `Role: ${task.assigneeRole}` : 'Unassigned')}
+          </p>
+        </div>
+        <div class="modal-buttons">
+          <button id="closeTaskBtn" class="btn btn-secondary">Close</button>
+          <button id="deleteTaskBtn" class="btn btn-danger">Delete Task</button>
+        </div>
+      </div>`;
+
+    setTimeout(() => {
+      const closeBtn = byId('closeTaskBtn'); if(closeBtn) closeBtn.onclick = close;
+      const deleteBtn = byId('deleteTaskBtn');
+      if(deleteBtn){
+        deleteBtn.onclick=()=>{
+          if(confirm(`Are you sure you want to delete "${task.title}"?`)){
+            team.tasks = team.tasks.filter(t => t.id !== task.id);
+            close();
+            renderBoard(team.name);
+            enableDnD(team.name);
+            toast('Task deleted successfully');
+          }
+        };
+      }
+    }, 0);
+  });
+  document.body.appendChild(modal);
+}
+
+function buildModal(title, mount){
   const wrap=document.createElement('div'); wrap.className='modal';
   const content=document.createElement('div'); content.className='modal-content';
   const header=document.createElement('div'); header.className='modal-header';
-  const h=document.createElement('h3'); h.textContent=title; 
+  const h=document.createElement('h3'); h.textContent=title;
   const x=document.createElement('button'); x.className='modal-close'; x.textContent='×';
-  header.append(h,x); 
-  const body=document.createElement('div'); 
-  content.append(header,body); 
+  header.append(h,x);
+  const body=document.createElement('div');
+  content.append(header,body);
   wrap.appendChild(content);
-  const close=()=>hideModal(wrap); 
-  x.onclick=close; 
-  wrap.addEventListener('click',e=>{ if(e.target===wrap) close(); }); 
-  mount(body,close); 
-  return wrap; 
+  const close=()=>hideModal(wrap);
+  x.onclick=close;
+  wrap.addEventListener('click',e=>{ if(e.target===wrap) close(); });
+  mount(body,close);
+  return wrap;
 }
 
 function hideModal(m){ if(m&&m.parentElement) m.parentElement.removeChild(m); }
@@ -634,16 +836,20 @@ function hideModal(m){ if(m&&m.parentElement) m.parentElement.removeChild(m); }
 /* ===========================
    Utils
    =========================== */
-function showCelebration(points){ 
+function showCelebration(points){
   const o=document.createElement('div'); o.className='celebration-overlay';
-  o.innerHTML=`<div class="celebration-content"><div class="celebration-emoji">🎉</div><div class="celebration-text">Released!</div><div class="celebration-points">+${points} pts</div></div>`;
-  document.body.appendChild(o); 
-  setTimeout(()=>o.remove(),1200); 
+  o.innerHTML = '<div class="celebration-content">'
+    + '<div class="celebration-emoji">🎉</div>'
+    + '<div class="celebration-text">Released!</div>'
+    + '<div class="celebration-points">+' + points + ' pts</div>'
+    + '</div>';
+  document.body.appendChild(o);
+  setTimeout(()=>o.remove(),1200);
 }
 
-function toast(msg){ 
-  const n=document.createElement('div'); 
-  n.textContent=msg; 
+function toast(msg){
+  const n=document.createElement('div');
+  n.textContent=msg;
   Object.assign(n.style,{
     position:'fixed',
     bottom:'24px',
@@ -654,21 +860,19 @@ function toast(msg){
     padding:'10px 14px',
     borderRadius:'8px',
     zIndex:'2000'
-  }); 
-  document.body.appendChild(n); 
-  setTimeout(()=>n.remove(),1600); 
+  });
+  document.body.appendChild(n);
+  setTimeout(()=>n.remove(),1600);
 }
 
 /* ===========================
    Wire up
    =========================== */
-window.previousStep=previousStep; 
-window.nextStep=nextStep; 
+window.previousStep=previousStep;
+window.nextStep=nextStep;
 window.selectOption=selectOption;
-window.focusTagInput=focusTagInput; 
-window.handleTeamInput=handleTeamInput; 
+window.focusTagInput=focusTagInput;
+window.handleTeamInput=handleTeamInput;
 window.handleCategoryInput=handleCategoryInput;
 
-document.addEventListener('DOMContentLoaded', ()=>{ 
-  gotoStep(0);
-});
+document.addEventListener('DOMContentLoaded', ()=>{ gotoStep(0); });
