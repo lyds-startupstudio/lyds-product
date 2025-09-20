@@ -71,7 +71,7 @@ function handleCategoryInput(e){ if(e.key==='Enter'){ e.preventDefault(); const 
 /* ===========================
    Avatar Creation
    =========================== */
-const DEFAULT_AVATARS=['🧙‍♂️','🧝‍♀️','🤖','🧑‍🚀','🧟‍♂️','🧛‍♀️','🧜‍♀️','🧑‍🔬','🦸‍♂️','🦹‍♀️','🐉','🐺','🦄','🐵','🐸','🐯'];
+const DEFAULT_AVATARS=['🧙‍♂️','🧛‍♀️','🤖','🧑‍🚀','🧟‍♂️','🧛‍♀️','🧜‍♀️','🧑‍🔬','🦸‍♂️','🦹‍♀️','🐉','🐺','🦄','🐵','🐸','🐯'];
 
 function prepareAvatarScreen(){
   const isBiz = state.setup.userType==='business';
@@ -194,7 +194,8 @@ function openEmployeeProfile(id){
         <div class="profile-row"><span>Team Lead</span><strong>${isLead(a)?'Yes':'No'}</strong></div>
         <div class="modal-buttons"><button id="closeEmp" class="btn btn-secondary">Close</button></div>
       </div>`;
-    byId('closeEmp').onclick=close;
+    const closeBtn = byId('closeEmp');
+    if(closeBtn) closeBtn.onclick=close;
   });
   document.body.appendChild(modal);
 }
@@ -278,19 +279,33 @@ function openTeam(teamName){
   renderBoard(teamName); 
   enableDnD(teamName);
   showScreen('team');
-  const addBtn = byId('addTaskHeaderBtn');
-  if (addBtn) addBtn.onclick = () => showAddTaskModal(teamName);
 
-  byId('manageEventsBtn').onclick=()=>showManageEventsModal(teamName);
-  byId('backButton').onclick=()=>{ showScreen('platform'); renderPlatformForUser(); updateTeamPointsDisplay(); };
+  // תיקון - קישור הכפתור Add Task
+  setTimeout(() => {
+    const addTaskBtn = byId('addTaskHeaderBtn');
+    if (addTaskBtn) {
+      addTaskBtn.onclick = (e) => {
+        e.preventDefault();
+        showAddTaskModal(teamName);
+      };
+    }
+  }, 50);
+
+  const manageBtn = byId('manageEventsBtn');
+  if(manageBtn) manageBtn.onclick=()=>showManageEventsModal(teamName);
+  
+  const backBtn = byId('backButton');
+  if(backBtn) backBtn.onclick=()=>{ showScreen('platform'); renderPlatformForUser(); updateTeamPointsDisplay(); };
 
   const toggle = byId('beltToggle');
-  toggle.onclick = ()=>{
-    state.ui.beltPaused = !state.ui.beltPaused;
-    toggle.textContent = state.ui.beltPaused ? 'Play' : 'Pause';
-    renderBacklogBelt(team);
-    enableDnD(teamName);
-  };
+  if(toggle) {
+    toggle.onclick = ()=>{
+      state.ui.beltPaused = !state.ui.beltPaused;
+      toggle.textContent = state.ui.beltPaused ? 'Play' : 'Pause';
+      renderBacklogBelt(team);
+      enableDnD(teamName);
+    };
+  }
 }
 
 function renderBoard(teamName){
@@ -390,13 +405,15 @@ function enableDnD(teamName){
   const isLeadUser = user && isLead(user);
 
   const backlogView = byId('backlogBeltViewport');
-  backlogView.ondragover=(ev)=>{ ev.preventDefault(); backlogView.classList.add('drag-over'); };
-  backlogView.ondragleave=()=> backlogView.classList.remove('drag-over');
-  backlogView.ondrop=(ev)=>{
-    ev.preventDefault(); backlogView.classList.remove('drag-over');
-    const id=ev.dataTransfer?.getData('text/task-id'); const task=team.tasks.find(t=>t.id===id); if(!task) return;
-    task.status='backlog'; renderBoard(teamName); enableDnD(teamName);
-  };
+  if(backlogView) {
+    backlogView.ondragover=(ev)=>{ ev.preventDefault(); backlogView.classList.add('drag-over'); };
+    backlogView.ondragleave=()=> backlogView.classList.remove('drag-over');
+    backlogView.ondrop=(ev)=>{
+      ev.preventDefault(); backlogView.classList.remove('drag-over');
+      const id=ev.dataTransfer?.getData('text/task-id'); const task=team.tasks.find(t=>t.id===id); if(!task) return;
+      task.status='backlog'; renderBoard(teamName); enableDnD(teamName);
+    };
+  }
 
   [['todo','todoTasks'],['in-progress','progressTasks'],['waiting','waitingTasks'],['done','doneTasks']].forEach(([status,id])=>{
     const el=byId(id); if(!el) return;
@@ -481,33 +498,41 @@ function showAddTaskModal(teamName){
           <button type="submit" class="btn btn-primary">Add Task</button>
         </div>
       </form>`;
-    byId('cancelBtn').onclick=close;
+    
+    // תיקון - השימוש ב-setTimeout כדי לוודא שהאלמנטים קיימים
+    setTimeout(() => {
+      const cancelBtn = byId('cancelBtn');
+      if (cancelBtn) cancelBtn.onclick = close;
 
-    byId('addTaskForm').onsubmit=(e)=>{ 
-      e.preventDefault();
-      const title = byId('taskTitle').value.trim();
-      if(!title){ toast('Please enter task title'); return; }
+      const addTaskForm = byId('addTaskForm');
+      if (addTaskForm) {
+        addTaskForm.onsubmit = (e) => { 
+          e.preventDefault();
+          const title = byId('taskTitle').value.trim();
+          if(!title){ toast('Please enter task title'); return; }
 
-      const chosenAssignee = byId('taskAssignee').value || null;
-      const roleText = byId('taskAssigneeRole').value.trim() || null;
+          const chosenAssignee = byId('taskAssignee').value || null;
+          const roleText = byId('taskAssigneeRole').value.trim() || null;
 
-      const task={
-        id:'tsk_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
-        title,
-        description:byId('taskDescription').value.trim(),
-        priority:byId('taskPriority').value,
-        points:Number(byId('taskPoints').value)||0,
-        due: byId('taskDue').value || null,
-        assigneeId: chosenAssignee,
-        assigneeRole: roleText,
-        status:'backlog'
-      };
+          const task={
+            id:'tsk_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+            title,
+            description:byId('taskDescription').value.trim(),
+            priority:byId('taskPriority').value,
+            points:Number(byId('taskPoints').value)||0,
+            due: byId('taskDue').value || null,
+            assigneeId: chosenAssignee,
+            assigneeRole: roleText,
+            status:'backlog'
+          };
 
-      team.tasks.push(task);
-      close();
-      renderBoard(teamName);
-      enableDnD(teamName);
-    };
+          team.tasks.push(task);
+          close();
+          renderBoard(teamName);
+          enableDnD(teamName);
+        };
+      }
+    }, 0);
   });
   document.body.appendChild(modal);
 }
@@ -520,8 +545,22 @@ function promptAssignMember(team, onAssign, onCancel){
         <div class="form-group"><label>Select member</label><div class="assign-list">${options}</div></div>
         <div class="modal-buttons"><button type="button" id="cancelAssign" class="btn btn-secondary">Cancel</button><button type="submit" class="btn btn-primary">Assign</button></div>
       </form>`;
-    byId('cancelAssign').onclick=()=>{ close(); onCancel?.(); };
-    byId('assignForm').onsubmit=(e)=>{ e.preventDefault(); const chosen = body.querySelector('input[name="assignee"]:checked')?.value; if(!chosen) return; close(); onAssign?.(chosen); };
+    
+    setTimeout(() => {
+      const cancelAssignBtn = byId('cancelAssign');
+      if(cancelAssignBtn) cancelAssignBtn.onclick=()=>{ close(); onCancel?.(); };
+      
+      const assignForm = byId('assignForm');
+      if(assignForm) {
+        assignForm.onsubmit=(e)=>{ 
+          e.preventDefault(); 
+          const chosen = body.querySelector('input[name="assignee"]:checked')?.value; 
+          if(!chosen) return; 
+          close(); 
+          onAssign?.(chosen); 
+        };
+      }
+    }, 0);
   });
   document.body.appendChild(modal);
 }
@@ -529,13 +568,16 @@ function promptAssignMember(team, onAssign, onCancel){
 function showManageEventsModal(teamName){
   const team=state.teams[teamName];
   const modal=buildModal('Manage Point Events',(body,close)=>{
-    const render=()=>{ const list=byId('eventsListDyn');
-      list.innerHTML = team.events.map(ev=>`
-        <div style="display:flex;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--color-border);border-radius:8px;margin-bottom:6px;">
-          <div><strong>${ev.name}</strong> • ${ev.points} pts</div>
-          <button data-id="${ev.id}" class="btn btn-secondary btn-sm">Delete</button>
-        </div>`).join('') || `<div style="color:var(--color-text-secondary);">No events yet.</div>`;
-      list.querySelectorAll('button[data-id]').forEach(b=> b.onclick=()=>{ const id=b.getAttribute('data-id'); team.events=team.events.filter(e=>e.id!==id); render(); });
+    const render=()=>{ 
+      const list=byId('eventsListDyn');
+      if(list) {
+        list.innerHTML = team.events.map(ev=>`
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--color-border);border-radius:8px;margin-bottom:6px;">
+            <div><strong>${ev.name}</strong> • ${ev.points} pts</div>
+            <button data-id="${ev.id}" class="btn btn-secondary btn-sm">Delete</button>
+          </div>`).join('') || `<div style="color:var(--color-text-secondary);">No events yet.</div>`;
+        list.querySelectorAll('button[data-id]').forEach(b=> b.onclick=()=>{ const id=b.getAttribute('data-id'); team.events=team.events.filter(e=>e.id!==id); render(); });
+      }
     };
     body.innerHTML=`
       <div class="modal-form">
@@ -545,62 +587,88 @@ function showManageEventsModal(teamName){
         <div class="form-group"><label>Points</label><input id="eventPoints" type="number" class="form-control" min="1" max="500" value="10"></div>
         <div class="modal-buttons"><button id="cancelEvents" class="btn btn-secondary">Close</button><button id="addEventBtn" class="btn btn-primary">Add Event</button></div>
       </div>`;
-    byId('cancelEvents').onclick=close;
-    byId('addEventBtn').onclick=()=>{ const name=byId('eventName').value.trim(); const pts=Number(byId('eventPoints').value)||0; if(!name||pts<=0) return; team.events.push({id:'evt_'+Date.now(),name,points:pts}); byId('eventName').value=''; byId('eventPoints').value=10; render(); };
-    render();
+    
+    setTimeout(() => {
+      const cancelEventsBtn = byId('cancelEvents');
+      if(cancelEventsBtn) cancelEventsBtn.onclick=close;
+      
+      const addEventBtn = byId('addEventBtn');
+      if(addEventBtn) {
+        addEventBtn.onclick=()=>{ 
+          const name=byId('eventName')?.value.trim(); 
+          const pts=Number(byId('eventPoints')?.value)||0; 
+          if(!name||pts<=0) return; 
+          team.events.push({id:'evt_'+Date.now(),name,points:pts}); 
+          const eventNameInput = byId('eventName');
+          const eventPointsInput = byId('eventPoints');
+          if(eventNameInput) eventNameInput.value=''; 
+          if(eventPointsInput) eventPointsInput.value='10'; 
+          render(); 
+        };
+      }
+      render();
+    }, 0);
   });
   document.body.appendChild(modal);
 }
 
-function buildModal(title, mount){ const wrap=document.createElement('div'); wrap.className='modal';
+function buildModal(title, mount){ 
+  const wrap=document.createElement('div'); wrap.className='modal';
   const content=document.createElement('div'); content.className='modal-content';
   const header=document.createElement('div'); header.className='modal-header';
-  const h=document.createElement('h3'); h.textContent=title; const x=document.createElement('button'); x.className='modal-close'; x.textContent='×';
-  header.append(h,x); const body=document.createElement('div'); content.append(header,body); wrap.appendChild(content);
-  const close=()=>hideModal(wrap); x.onclick=close; wrap.addEventListener('click',e=>{ if(e.target===wrap) close(); }); mount(body,close); return wrap; }
+  const h=document.createElement('h3'); h.textContent=title; 
+  const x=document.createElement('button'); x.className='modal-close'; x.textContent='×';
+  header.append(h,x); 
+  const body=document.createElement('div'); 
+  content.append(header,body); 
+  wrap.appendChild(content);
+  const close=()=>hideModal(wrap); 
+  x.onclick=close; 
+  wrap.addEventListener('click',e=>{ if(e.target===wrap) close(); }); 
+  mount(body,close); 
+  return wrap; 
+}
+
 function hideModal(m){ if(m&&m.parentElement) m.parentElement.removeChild(m); }
 
 /* ===========================
    Utils
    =========================== */
-function showCelebration(points){ const o=document.createElement('div'); o.className='celebration-overlay';
+function showCelebration(points){ 
+  const o=document.createElement('div'); o.className='celebration-overlay';
   o.innerHTML=`<div class="celebration-content"><div class="celebration-emoji">🎉</div><div class="celebration-text">Released!</div><div class="celebration-points">+${points} pts</div></div>`;
-  document.body.appendChild(o); setTimeout(()=>o.remove(),1200); }
-function toast(msg){ const n=document.createElement('div'); n.textContent=msg; Object.assign(n.style,{position:'fixed',bottom:'24px',left:'50%',transform:'translateX(-50%)',background:'rgba(0,0,0,.8)',color:'#fff',padding:'10px 14px',borderRadius:'8px',zIndex:'2000'}); document.body.appendChild(n); setTimeout(()=>n.remove(),1600); }
+  document.body.appendChild(o); 
+  setTimeout(()=>o.remove(),1200); 
+}
 
-/* ===========================
-   Global button binding
-   =========================== */
-function bindGlobalButtons(){
-  document.addEventListener('click', (e) => {
-    const btn = e.target.closest('#addTaskHeaderBtn');
-    if (!btn) return;
-    e.preventDefault();
-    const teamName = state.currentTeam || (byId('teamName')?.textContent || '').trim();
-    if (!teamName) { toast('to add a task, please enter the team room first'); return; }
-    showAddTaskModal(teamName);
-  });
+function toast(msg){ 
+  const n=document.createElement('div'); 
+  n.textContent=msg; 
+  Object.assign(n.style,{
+    position:'fixed',
+    bottom:'24px',
+    left:'50%',
+    transform:'translateX(-50%)',
+    background:'rgba(0,0,0,.8)',
+    color:'#fff',
+    padding:'10px 14px',
+    borderRadius:'8px',
+    zIndex:'2000'
+  }); 
+  document.body.appendChild(n); 
+  setTimeout(()=>n.remove(),1600); 
 }
 
 /* ===========================
    Wire up
    =========================== */
-window.previousStep=previousStep; window.nextStep=nextStep; window.selectOption=selectOption;
-window.focusTagInput=focusTagInput; window.handleTeamInput=handleTeamInput; window.handleCategoryInput=handleCategoryInput;
+window.previousStep=previousStep; 
+window.nextStep=nextStep; 
+window.selectOption=selectOption;
+window.focusTagInput=focusTagInput; 
+window.handleTeamInput=handleTeamInput; 
+window.handleCategoryInput=handleCategoryInput;
 
 document.addEventListener('DOMContentLoaded', ()=>{ 
   gotoStep(0);
-  bindGlobalButtons();
 });
-
-/* ==== Ultra-stable inline hook for the header +Add Task button ==== */
-window.__openAddTask = function(){
-  try{
-    const teamName = state.currentTeam || (byId('teamName')?.textContent || '').trim();
-    if(!teamName){ toast('Please enter a team first'); return; }
-    showAddTaskModal(teamName);
-  }catch(err){
-    console.error('openAddTask error', err);
-    alert('Add Task failed: ' + err.message);
-  }
-};
