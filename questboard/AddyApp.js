@@ -1,17 +1,85 @@
 /* ===========================
-   QuestBoard - app.js (Clean & Fixed)
+   QuestBoard - app.js (Auth + Persistence)
    =========================== */
 
 /** Global state **/
 const state = {
+  // setup definitions
   setup: { userType:null, businessType:null, personalPurpose:null, teams:[], categories:[] },
-  avatars: [], // [{id,name,role,emoji,team,isTeamLead}]
+
+  // domain data
+  avatars: [], // [{id,name,role,emoji,team,isTeamLead, login?:{username,password}}]
   teams: {},   // teamName -> { name, members:[], tasks:[], events:[], leadId, awardedPoints }
+
+  // runtime
   currentUserId: null,
   currentTeam: null,
   office: { posX:0, posY:0, speed:3, keys:{}, loopId:null, keydownHandler:null, keyupHandler:null, nearTeam:null },
-  ui: { beltPaused:false }
+  ui: { beltPaused:false },
+
+  // workspace (persistence metadata)
+  workspace: { id:null, type:null, login:null } // login:{username,password}
 };
+
+/** ==== Persistence (localStorage) ==== **/
+const LS_KEY = 'QB_workspaces_v1'; // map: id -> { id,type,login:{u,p}, data:<serializedState> }
+function readStore(){
+  try { return JSON.parse(localStorage.getItem(LS_KEY)||'{}'); } catch(e){ return {}; }
+}
+function writeStore(store){ localStorage.setItem(LS_KEY, JSON.stringify(store)); }
+function generateId(prefix){ return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`; }
+
+// Save current workspace state
+function saveCurrentWorkspace(){
+  if(!state.workspace.id) return;
+  const store = readStore();
+  // serialize minimal public state
+  const data = {
+    setup: state.setup,
+    avatars: state.avatars,
+    teams: state.teams
+  };
+  store[state.workspace.id] = {
+    id: state.workspace.id,
+    type: state.workspace.type,
+    login: state.workspace.login, // {username,password} (Demo only)
+    data
+  };
+  writeStore(store);
+}
+
+// Create a new workspace shell (no data yet)
+function createWorkspace(type, username, password){
+  const id = generateId('ws');
+  state.workspace.id = id;
+  state.workspace.type = type;
+  state.workspace.login = { username, password };
+  saveCurrentWorkspace();
+  return id;
+}
+
+// Try to sign in to workspace
+function signInWorkspace(username, password){
+  const store = readStore();
+  const found = Object.values(store).find(ws => ws.login?.username===username && ws.login?.password===password);
+  if(!found) return null;
+
+  // hydrate
+  hydrateFrom(found);
+  return found;
+}
+
+function hydrateFrom(ws){
+  // clear current runtime
+  state.setup = JSON.parse(JSON.stringify(ws.data?.setup || { userType:null, businessType:null, personalPurpose:null, teams:[], categories:[] }));
+  state.avatars = JSON.parse(JSON.stringify(ws.data?.avatars || []));
+  state.teams = JSON.parse(JSON.stringify(ws.data?.teams || {}));
+  state.currentUserId = null;
+  state.currentTeam = null;
+  state.office = { posX:0, posY:0, speed:3, keys:{}, loopId:null, keydownHandler:null, keyupHandler:null, nearTeam:null };
+  state.ui = { beltPaused:false };
+  state.workspace = { id: ws.id, type: ws.type, login: ws.login };
+}
 
 /** DOM helpers **/
 const $  = (s)=>document.querySelector(s);
@@ -26,7 +94,7 @@ function showScreen(k){
 }
 
 /* ===========================
-   Setup Wizard
+   Setup Wizard (with auth flow)
    =========================== */
 const stepsOrder={ personal:['step1','step2b','step3b'], business:['step1','step2a','step3a'] };
 let currentStepIndex=0;
@@ -56,10 +124,28 @@ function isCurrentStepValid(){
 function previousStep(){ gotoStep(currentStepIndex-1); }
 function nextStep(){
   if(!isCurrentStepValid()) return;
-  if(currentStepIndex===currentSteps().length-1){
-    prepareAvatarScreen(); showScreen('avatar'); return;
+  const isLast = currentStepIndex===currentSteps().length-1;
+
+  if(!isLast){ gotoStep(currentStepIndex+1); return; }
+
+  // הגענו לסוף האשף:
+  if(state.setup.userType==='business'){
+    // במודל עסקי: אין יצירת אווטאר בשלב זה.
+    // מבקשים להגדיר משתמש/סיסמה לאזור (workspace) ושומרים.
+    showWorkspaceAuthModal('business', ({username,password})=>{
+      createWorkspace('business', username, password);
+      saveCurrentWorkspace(); // נשמר כ־Workspace ריק עם ה־setup וה־teams
+      // אפשר להיכנס לאזור (ללא עובד מחובר) – כפתורי יצירת/התחברות עובד זמינים.
+      renderPlatformForUser(); // יסתדר גם אם currentUserId=null
+      showScreen('platform');
+      toast('Business workspace created. You can now create or sign in as an employee.');
+    });
+    return;
   }
-  gotoStep(currentStepIndex+1);
+
+  // במודל אישי: נשמור את האישורים בסוף יצירת האווטאר (כדי שה־workspace יכלול את האווטאר)
+  prepareAvatarScreen(true /*isPersonalCreation*/);
+  showScreen('avatar');
 }
 function selectOption(field,val,el){
   if(field==='userType'){ state.setup.userType=val; state.setup.businessType=null; state.setup.personalPurpose=null; }
@@ -116,13 +202,26 @@ function handleCategoryInput(e){
    =========================== */
 const DEFAULT_AVATARS=['🧙‍♂️','🧛‍♀️','🤖','🧑‍🚀','🧟‍♂️','🧛‍♀️','🧜‍♀️','🧑‍🔬','🦸‍♂️','🦹‍♀️','🐉','🦺','🦄','🐵','🐸','🐯'];
 
-function prepareAvatarScreen(){
+function prepareAvatarScreen(isPersonalCreation=false){
   const isBiz = state.setup.userType==='business';
   const group = byId('teamSelectionGroup');
   const select= byId('userTeam');
   if(group) group.style.display = isBiz ? 'block':'none';
   if(isBiz && select) select.innerHTML = `<option value="">Select your team</option>` + state.setup.teams.map(t=>`<option value="${t}">${t}</option>`).join('');
 
+  // אם הגענו לפה ממודל עסקי דרך האשף — אל תאפשר יצירת אווטאר (נחזור לפלטפורמה)
+  if(isBiz && !isPersonalCreation && !state.workspace.id){
+    // ביטחון כפול: לא מציגים את מסך האווטאר ביצירת Workspace עסקי
+    renderPlatformForUser();
+    showScreen('platform');
+    return;
+  }
+
+  // Business: מסך יצירת אווטאר שנפתח מהכפתור "+ Create New Avatar" צריך לכלול יצירת שם משתמש/סיסמה לעובד
+  const authBlock = byId('avatarAuthBlock');
+  if(authBlock) authBlock.style.display = isBiz ? 'block' : 'none';
+
+  // grid avatars
   const grid=byId('avatarGrid'); if(grid) grid.innerHTML='';
   let selected=null;
   DEFAULT_AVATARS.forEach(emo=>{
@@ -131,7 +230,7 @@ function prepareAvatarScreen(){
     grid?.appendChild(el);
   });
 
-  const goBack = ()=>{ if(state.avatars.length>0){ showScreen('platform'); renderPlatformForUser(); } else { showScreen('setup'); gotoStep(0); } };
+  const goBack = ()=>{ if(state.avatars.length>0 || state.workspace.id){ showScreen('platform'); renderPlatformForUser(); } else { showScreen('setup'); gotoStep(0); } };
   const avatarBackBtn = byId('avatarBackBtn');
   const cancelAvatarBtn = byId('cancelAvatarBtn');
   if(avatarBackBtn) avatarBackBtn.onclick = goBack;
@@ -145,8 +244,22 @@ function prepareAvatarScreen(){
       const role=byId('jobTitle')?.value.trim();
       const team=isBiz ? byId('userTeam')?.value : null;
       if(!name||!role) return;
+
+      // credentials for employee (business only)
+      let login=null;
+      if(isBiz){
+        const u = byId('avatarUsername')?.value.trim();
+        const p = byId('avatarPassword')?.value;
+        if(!u || !p){ toast('Please set username & password for this employee'); return; }
+        // ensure uniqueness inside workspace
+        if(state.avatars.some(a=>a.login?.username===u)){
+          toast('Username already exists'); return;
+        }
+        login = { username:u, password:p };
+      }
+
       const id = 'avt_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-      const avatar = { id, name, role, emoji:selected||DEFAULT_AVATARS[0], team, isTeamLead:false };
+      const avatar = { id, name, role, emoji:selected||DEFAULT_AVATARS[0], team, isTeamLead:false, login };
       state.avatars.push(avatar);
       state.currentUserId=id;
 
@@ -156,6 +269,19 @@ function prepareAvatarScreen(){
         if(!state.teams[team].leadId){ state.teams[team].leadId=id; avatar.isTeamLead=true; }
       }
 
+      // Personal-first-creation: אחרי יצירת האווטאר מבקשים שם משתמש/סיסמה ל-workspace,
+      // ושומרים הכול כך שבפעם הבאה נכנסים דרך Sign In (בלי להקים מחדש).
+      if(!isBiz && !state.workspace.id){
+        showWorkspaceAuthModal('personal', ({username,password})=>{
+          createWorkspace('personal', username, password);
+          saveCurrentWorkspace();
+          renderPlatformForUser(); showScreen('platform'); form.reset();
+          toast('Personal workspace created and saved.');
+        });
+        return;
+      }
+
+      saveCurrentWorkspace();
       renderPlatformForUser(); showScreen('platform'); form.reset();
     };
   }
@@ -169,20 +295,21 @@ function ensureTeamExists(name){
    Platform (Office)
    =========================== */
 function renderPlatformForUser(){
-  const u=getCurrentUser(); if(!u) return;
+  const u=getCurrentUser(); // יכול להיות null במודל עסקי אם עוד לא בוצעה התחברות עובד
   const navUserAvatar = byId('navUserAvatar');
   const navUserName = byId('navUserName');
   const navUserRole = byId('navUserRole');
-  if(navUserAvatar) navUserAvatar.textContent=u.emoji;
-  if(navUserName) navUserName.textContent=u.name;
-  if(navUserRole) navUserRole.textContent=u.role;
+
+  if(navUserAvatar) navUserAvatar.textContent=u?.emoji || '•';
+  if(navUserName) navUserName.textContent=u?.name || (state.workspace.type==='business'?'Not signed in':'');
+  if(navUserRole) navUserRole.textContent=u?.role || '';
 
   const char=byId('userCharacter');
   if(char){
     const ca = char.querySelector('.character-avatar');
     const cn = char.querySelector('.character-name');
-    if(ca) ca.textContent=u.emoji;
-    if(cn) cn.textContent=u.name;
+    if(ca) ca.textContent=u?.emoji || '•';
+    if(cn) cn.textContent=u?.name || '';
   }
 
   renderTeamRooms();
@@ -190,7 +317,22 @@ function renderPlatformForUser(){
   updateTeamPointsDisplay();
 
   const createNewAvatarBtn = byId('createNewAvatarBtn');
-  if(createNewAvatarBtn) createNewAvatarBtn.onclick=()=>{ stopOfficeControls(); prepareAvatarScreen(); showScreen('avatar'); };
+  const employeeSignInBtn = byId('employeeSignInBtn');
+
+  // במודל אישי – אין כפתור יצירת אווטאר נוסף ואין התחברות עובד
+  if(state.workspace.type==='personal'){
+    if(createNewAvatarBtn) createNewAvatarBtn.style.display='none';
+    if(employeeSignInBtn) employeeSignInBtn.style.display='none';
+  }else{
+    if(createNewAvatarBtn){
+      createNewAvatarBtn.style.display='inline-flex';
+      createNewAvatarBtn.onclick=()=>{ stopOfficeControls(); prepareAvatarScreen(false); showScreen('avatar'); };
+    }
+    if(employeeSignInBtn){
+      employeeSignInBtn.style.display='inline-flex';
+      employeeSignInBtn.onclick=()=>showEmployeeSignInModal();
+    }
+  }
 
   startOfficeControls();
 }
@@ -368,7 +510,6 @@ function openTeam(teamName){
   enableDnD(teamName);
   showScreen('team');
 
-  // Hook buttons after render
   setTimeout(() => {
     const addTaskBtn = byId('addTaskHeaderBtn');
     if (addTaskBtn) {
@@ -486,9 +627,10 @@ function renderTaskCard(task, team, mini=false, isClone=false){
   if(task.status==='waiting' && lead){
     const btn=document.createElement('button'); btn.className='approve-button'; btn.textContent='Approve & Done';
     btn.onclick=(e)=>{
-      e.stopPropagation(); // לא לפתוח מודאל בפרטי משימה
+      e.stopPropagation();
       team.awardedPoints=(team.awardedPoints||0)+(task.points||0);
       task.status='done';
+      saveCurrentWorkspace();
       renderBoard(team.name);
       enableDnD(team.name);
       showCelebration(task.points||0);
@@ -496,7 +638,6 @@ function renderTaskCard(task, team, mini=false, isClone=false){
     card.appendChild(btn);
   }
 
-  // אל תפתח מודאל לפרטי משימה עבור קלונים של ה-Belt
   if(!isClone){
     card.onclick=(e)=>{
       if(e.target.classList.contains('approve-button')) return;
@@ -528,7 +669,7 @@ function enableDnD(teamName){
     backlogView.ondrop=(ev)=>{
       ev.preventDefault(); backlogView.classList.remove('drag-over');
       const id=ev.dataTransfer?.getData('text/task-id'); const task=team.tasks.find(t=>t.id===id); if(!task) return;
-      task.status='backlog'; renderBoard(teamName); enableDnD(teamName);
+      task.status='backlog'; saveCurrentWorkspace(); renderBoard(teamName); enableDnD(teamName);
     };
   }
 
@@ -547,6 +688,7 @@ function enableDnD(teamName){
         promptAssignMember(team, (memberId)=>{
           task.assigneeId = memberId;
           task.status = 'todo';
+          saveCurrentWorkspace();
           renderBoard(teamName); enableDnD(teamName);
         }, ()=>{
           task.status = prev;
@@ -555,7 +697,9 @@ function enableDnD(teamName){
         return;
       }
 
-      task.status=status; renderBoard(teamName);
+      task.status=status;
+      saveCurrentWorkspace();
+      renderBoard(teamName);
       enableDnD(teamName);
     };
   });
@@ -568,7 +712,7 @@ function enableDnD(teamName){
 }
 
 /* ===========================
-   Modals
+   Modals (Tasks/Events + NEW Auth)
    =========================== */
 function showAddTaskModal(teamName){
   ensureTeamExists(teamName);
@@ -657,6 +801,7 @@ function showAddTaskModal(teamName){
           };
 
           team.tasks.push(task);
+          saveCurrentWorkspace();
           close();
           renderBoard(teamName);
           enableDnD(teamName);
@@ -716,7 +861,7 @@ function showManageEventsModal(teamName){
             <button data-id="${ev.id}" class="btn btn-secondary btn-sm">Delete</button>
           </div>`).join('') || `<div style="color:var(--color-text-secondary);">No events yet.</div>`;
         list.querySelectorAll('button[data-id]').forEach(b=> b.onclick=()=>{
-          const id=b.getAttribute('data-id'); team.events=team.events.filter(e=>e.id!==id); render();
+          const id=b.getAttribute('data-id'); team.events=team.events.filter(e=>e.id!==id); render(); saveCurrentWorkspace();
         });
       }
     };
@@ -744,6 +889,7 @@ function showManageEventsModal(teamName){
           const eventPointsInput = byId('eventPoints');
           if(eventNameInput) eventNameInput.value='';
           if(eventPointsInput) eventPointsInput.value='10';
+          saveCurrentWorkspace();
           render();
         };
       }
@@ -802,6 +948,7 @@ function showTaskDetailsModal(task, team){
         deleteBtn.onclick=()=>{
           if(confirm(`Are you sure you want to delete "${task.title}"?`)){
             team.tasks = team.tasks.filter(t => t.id !== task.id);
+            saveCurrentWorkspace();
             close();
             renderBoard(team.name);
             enableDnD(team.name);
@@ -814,6 +961,131 @@ function showTaskDetailsModal(task, team){
   document.body.appendChild(modal);
 }
 
+/** ===== Auth Modals ===== */
+
+// יצירת אישורי Workspace (גם personal וגם business)
+function showWorkspaceAuthModal(type, onOk){
+  const modal=buildModal('Create Workspace Login',(body,close)=>{
+    body.innerHTML=`
+      <form id="wsAuthForm" class="modal-form">
+        <div class="form-group">
+          <label>Workspace Username (${type})</label>
+          <input id="wsUsername" class="form-control" placeholder="Choose a username" required>
+        </div>
+        <div class="form-group">
+          <label>Workspace Password</label>
+          <input id="wsPassword" type="password" class="form-control" placeholder="Choose a password" required>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" id="wsCancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+        <div class="small-hint">Note: Demo storage uses your browser only (localStorage).</div>
+      </form>`;
+    setTimeout(()=>{
+      byId('wsCancel').onclick=close;
+      byId('wsAuthForm').onsubmit=(e)=>{
+        e.preventDefault();
+        const username=byId('wsUsername').value.trim();
+        const password=byId('wsPassword').value;
+        if(!username||!password){ toast('Please fill username & password'); return; }
+
+        // basic uniqueness check
+        const exists = signInWorkspace(username, password);
+        if(exists){ toast('Workspace with same credentials already exists'); return; }
+
+        // restore pre-check (signInWorkspace mutated state), so reload wizard state:
+        hydrateFrom({ id:null, type:null, login:null, data:{ setup: state.setup, avatars: state.avatars, teams: state.teams } });
+
+        close();
+        onOk?.({username,password});
+      };
+    },0);
+  });
+  document.body.appendChild(modal);
+}
+
+// התחברות לאזור קיים מהעמוד הראשוני
+function showGlobalSignInModal(){
+  const modal=buildModal('Sign In to Workspace',(body,close)=>{
+    body.innerHTML=`
+      <form id="globalSignInForm" class="modal-form">
+        <div class="form-group">
+          <label>Workspace Username</label>
+          <input id="siWsUser" class="form-control" placeholder="Your workspace username">
+        </div>
+        <div class="form-group">
+          <label>Workspace Password</label>
+          <input id="siWsPass" type="password" class="form-control" placeholder="Your workspace password">
+        </div>
+        <div class="modal-buttons">
+          <button type="button" id="siCancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Sign In</button>
+        </div>
+        <div class="small-hint">Personal = one user; Business = add or sign in employees.</div>
+      </form>`;
+    setTimeout(()=>{
+      byId('siCancel').onclick=close;
+      byId('globalSignInForm').onsubmit=(e)=>{
+        e.preventDefault();
+        const u=byId('siWsUser').value.trim(), p=byId('siWsPass').value;
+        const ws = signInWorkspace(u,p);
+        if(!ws){ toast('Workspace not found or wrong password'); return; }
+
+        // Personal: יש אווטאר אחד — נחבר אותו כ-currentUser
+        if(ws.type==='personal'){
+          const first = state.avatars[0];
+          state.currentUserId = first?.id || null;
+        }else{
+          state.currentUserId = null; // במודל עסקי – עובד צריך להתחבר בנפרד
+        }
+        saveCurrentWorkspace(); // עדכון קטן אם צריך
+        renderPlatformForUser(); showScreen('platform');
+        close();
+        toast('Signed in.');
+      };
+    },0);
+  });
+  document.body.appendChild(modal);
+}
+
+// התחברות עובד (במודל עסקי) לפי שם משתמש/סיסמה שהוגדרו בזמן יצירת האווטאר
+function showEmployeeSignInModal(){
+  const modal=buildModal('Employee Sign In',(body,close)=>{
+    body.innerHTML=`
+      <form id="empSignInForm" class="modal-form">
+        <div class="form-group">
+          <label>Employee Username</label>
+          <input id="empUser" class="form-control" placeholder="Your username">
+        </div>
+        <div class="form-group">
+          <label>Employee Password</label>
+          <input id="empPass" type="password" class="form-control" placeholder="Your password">
+        </div>
+        <div class="modal-buttons">
+          <button type="button" id="empCancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Sign In</button>
+        </div>
+      </form>`;
+    setTimeout(()=>{
+      byId('empCancel').onclick=close;
+      byId('empSignInForm').onsubmit=(e)=>{
+        e.preventDefault();
+        const u=byId('empUser').value.trim(), p=byId('empPass').value;
+        const found = state.avatars.find(a=>a.login?.username===u && a.login?.password===p);
+        if(!found){ toast('User not found'); return; }
+        state.currentUserId = found.id;
+        saveCurrentWorkspace();
+        close();
+        renderPlatformForUser();
+        toast('You are signed in.');
+      };
+    },0);
+  });
+  document.body.appendChild(modal);
+}
+
+/* ========== Modal infra & Utils ========== */
 function buildModal(title, mount){
   const wrap=document.createElement('div'); wrap.className='modal';
   const content=document.createElement('div'); content.className='modal-content';
@@ -830,12 +1102,8 @@ function buildModal(title, mount){
   mount(body,close);
   return wrap;
 }
-
 function hideModal(m){ if(m&&m.parentElement) m.parentElement.removeChild(m); }
 
-/* ===========================
-   Utils
-   =========================== */
 function showCelebration(points){
   const o=document.createElement('div'); o.className='celebration-overlay';
   o.innerHTML = '<div class="celebration-content">'
@@ -846,7 +1114,6 @@ function showCelebration(points){
   document.body.appendChild(o);
   setTimeout(()=>o.remove(),1200);
 }
-
 function toast(msg){
   const n=document.createElement('div');
   n.textContent=msg;
@@ -875,4 +1142,10 @@ window.focusTagInput=focusTagInput;
 window.handleTeamInput=handleTeamInput;
 window.handleCategoryInput=handleCategoryInput;
 
-document.addEventListener('DOMContentLoaded', ()=>{ gotoStep(0); });
+document.addEventListener('DOMContentLoaded', ()=>{
+  // כפתור Sign In הראשי מהעמוד הראשון
+  const globalBtn = byId('globalSignInBtn');
+  if(globalBtn) globalBtn.onclick = showGlobalSignInModal;
+
+  gotoStep(0);
+});
