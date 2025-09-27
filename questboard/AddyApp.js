@@ -236,16 +236,18 @@ function prepareAvatarScreen(isPersonalCreation=false){
   if(avatarBackBtn) avatarBackBtn.onclick = goBack;
   if(cancelAvatarBtn) cancelAvatarBtn.onclick = goBack;
 
-  const form = byId('avatarForm');
-  if(form){
-    form.onsubmit=(e)=>{
-      e.preventDefault();
-      const name=byId('userName')?.value.trim();
-      const role=byId('jobTitle')?.value.trim();
-      const team=isBiz ? byId('userTeam')?.value : null;
-      if(!name||!role) return;
+const form = byId('avatarForm');
+if(form){
+  form.onsubmit=(e)=>{
+    e.preventDefault();
+    const name=byId('userName')?.value.trim();
+    const roleInput=byId('jobTitle')?.value.trim();
+    const role=roleInput || 'Personal User';
+    const team=isBiz ? byId('userTeam')?.value : null;
+    if(!name) return;
+    if(isBiz && !roleInput) return; // Only require role for business use
 
-      // credentials for employee (business only)
+  // credentials for employee (business only)
       let login=null;
       if(isBiz){
         const u = byId('avatarUsername')?.value.trim();
@@ -346,30 +348,50 @@ function updateTeamPointsDisplay(){
 function renderTeamRooms(){
   const c=byId('teamRoomsContainer'); if(!c) return;
   c.innerHTML='';
-  const teams=state.setup.teams;
-  const cols=Math.min(4,Math.max(2,Math.ceil(Math.sqrt(teams.length||1))));
+  
+  // For personal use, use categories instead of teams
+  const isPersonal = state.workspace.type === 'personal';
+  const items = isPersonal ? state.setup.categories : state.setup.teams;
+  
+  if(!items || items.length === 0) return;
+  
+  const cols=Math.min(4,Math.max(2,Math.ceil(Math.sqrt(items.length||1))));
   const cellW=240, cellH=190, startX=60, startY=60;
 
-  teams.forEach((t,i)=>{
-    ensureTeamExists(t);
-    const el=document.createElement('div'); el.className='team-room'; el.dataset.team=t;
+  items.forEach((item,i)=>{
+    if(!isPersonal) ensureTeamExists(item);
+    const el=document.createElement('div'); el.className='team-room'; el.dataset.team=item;
     el.style.borderColor=['#4F46E5','#10B981','#F59E0B','#EF4444','#6366F1','#06B6D4'][i%6];
-    const title=Object.assign(document.createElement('div'),{className:'room-header',textContent:t});
+    const title=Object.assign(document.createElement('div'),{className:'room-header',textContent:item});
     const members=Object.assign(document.createElement('div'),{className:'room-members'});
-    state.teams[t].members.slice(0,5).forEach(id=>{
-      const a=state.avatars.find(v=>v.id===id); if(!a) return;
-      const m=document.createElement('div'); m.className='room-member'; m.textContent=a.emoji; members.appendChild(m);
-    });
+    
+    if(!isPersonal && state.teams[item]) {
+      state.teams[item].members.slice(0,5).forEach(id=>{
+        const a=state.avatars.find(v=>v.id===id); if(!a) return;
+        const m=document.createElement('div'); m.className='room-member'; m.textContent=a.emoji; members.appendChild(m);
+      });
+    }
+    
     const enter=Object.assign(document.createElement('div'),{className:'room-enter',textContent:'Press E to enter'});
     el.append(title,members,enter);
     const r=Math.floor(i/cols), col=i%cols; el.style.left=(startX+col*cellW)+'px'; el.style.top=(startY+r*cellH)+'px';
-    el.onclick=()=>openTeam(t);
+    el.onclick=()=>openTeam(item);
     c.appendChild(el);
   });
 }
 
 /* Sidebar */
 function renderSidebar(){
+  const isPersonal = state.workspace.type === 'personal';
+  
+  // Hide entire sidebar for personal use
+  const sidePanel = byId('sidePanel');
+  if(sidePanel) {
+    sidePanel.style.display = isPersonal ? 'none' : 'block';
+  }
+  
+  if(isPersonal) return; // Don't render sidebar content for personal use
+  
   const teamList=byId('sidebarTeamList');
   if(teamList){
     teamList.innerHTML = state.setup.teams.map(t=>`<div class="team-item" data-team="${t}">${t}</div>`).join('') || `<div class="empty">No teams yet</div>`;
@@ -395,6 +417,8 @@ function renderSidebar(){
   if(search) search.oninput=refresh;
   refresh();
 }
+
+
 function isLead(avatar){
   const team = avatar.team && state.teams[avatar.team];
   const byIdLead = team && team.leadId === avatar.id;
@@ -485,6 +509,13 @@ const STATUS_ORDER=['backlog','todo','in-progress','waiting','done'];
 
 function openTeam(teamName){
   state.currentTeam=teamName;
+  const isPersonal = state.workspace.type === 'personal';
+  
+  // For personal use, ensure the category exists as a team
+  if(isPersonal) {
+    ensureTeamExists(teamName);
+  }
+  
   const team=state.teams[teamName];
   if(!team) return;
 
@@ -576,20 +607,23 @@ function renderBacklogBelt(team){
   if(!viewport || !track) return;
   track.innerHTML='';
 
+  // Always show each task only once
   tasks.forEach(t=> track.appendChild(renderTaskCard(t, team, true)));
-  if(!state.ui.beltPaused && tasks.length){
-    tasks.forEach(t=> track.appendChild(renderTaskCard(t, team, true, true)));
-  }
 
   viewport.setAttribute('data-paused', String(state.ui.beltPaused));
 }
 
+
+
 function renderTaskCard(task, team, mini=false, isClone=false){
   const card=document.createElement('div');
   card.className='task-card task--status-'+(task.status||'backlog')+(mini?' task-mini':'');
-  card.draggable=true;
+  card.draggable=!isClone; // Only original cards are draggable
   card.dataset.taskId=task.id;
-  if(isClone) card.setAttribute('data-clone','1');
+  if(isClone) {
+    card.setAttribute('data-clone','1');
+    card.style.pointerEvents = 'none'; // Disable all interactions on clones
+  }
 
   const title=document.createElement('div'); title.className='task-title-lg'; title.textContent=task.title;
   const statusRow=document.createElement('div'); statusRow.className='task-status-row';
@@ -661,6 +695,7 @@ function enableDnD(teamName){
   const team=state.teams[teamName];
   const user=getCurrentUser();
   const isLeadUser = user && isLead(user);
+  const isPersonal = state.workspace.type === 'personal';
 
   const backlogView = byId('backlogBeltViewport');
   if(backlogView) {
@@ -669,7 +704,10 @@ function enableDnD(teamName){
     backlogView.ondrop=(ev)=>{
       ev.preventDefault(); backlogView.classList.remove('drag-over');
       const id=ev.dataTransfer?.getData('text/task-id'); const task=team.tasks.find(t=>t.id===id); if(!task) return;
-      task.status='backlog'; saveCurrentWorkspace(); renderBoard(teamName); enableDnD(teamName);
+      task.status='backlog'; 
+      // Clear assignee when moving to backlog
+      task.assigneeId = null;
+      saveCurrentWorkspace(); renderBoard(teamName); enableDnD(teamName);
     };
   }
 
@@ -684,18 +722,24 @@ function enableDnD(teamName){
 
       if(prev==='waiting' && status==='done' && !isLeadUser){ toast('Only Team Lead can approve to Done.'); return; }
 
-      if(status==='todo' && !task.assigneeId){
-        promptAssignMember(team, (memberId)=>{
-          task.assigneeId = memberId;
-          task.status = 'todo';
-          saveCurrentWorkspace();
-          renderBoard(teamName); enableDnD(teamName);
-        }, ()=>{
-          task.status = prev;
-          renderBoard(teamName); enableDnD(teamName);
-        });
-        return;
-      }
+    const isPersonal = state.workspace.type === 'personal';
+    if(status==='todo' && !task.assigneeId && !isPersonal){
+      promptAssignMember(team, (memberId)=>{
+        task.assigneeId = memberId;
+        task.status = 'todo';
+        saveCurrentWorkspace();
+        renderBoard(teamName); enableDnD(teamName);
+      }, ()=>{
+        task.status = prev;
+        renderBoard(teamName); enableDnD(teamName);
+      });
+      return;
+    }
+
+    // For personal use, auto-assign to current user
+    if(status==='todo' && !task.assigneeId && isPersonal){
+      task.assigneeId = state.currentUserId;
+    }
 
       task.status=status;
       saveCurrentWorkspace();
@@ -704,17 +748,19 @@ function enableDnD(teamName){
     };
   });
 
-  $$('.task-card').forEach(card=>{
-    if(card.getAttribute('data-clone')==='1') return;
+$$('.task-card').forEach(card=>{
+  const isClone = card.getAttribute('data-clone')==='1';
+  if(!isClone) {
     card.ondragstart=(ev)=>{ ev.dataTransfer?.setData('text/task-id', card.dataset.taskId); setTimeout(()=>card.classList.add('dragging'),0); };
     card.ondragend=()=> card.classList.remove('dragging');
-  });
+  }
+});
 }
 
 /* ===========================
    Modals (Tasks/Events + NEW Auth)
    =========================== */
-function showAddTaskModal(teamName){
+function showAddTaskModal(teamName, targetStatus = 'backlog'){
   ensureTeamExists(teamName);
   const team=state.teams[teamName];
 
@@ -788,23 +834,23 @@ function showAddTaskModal(teamName){
           const chosenAssignee = byId('taskAssignee')?.value || null;
           const roleText = byId('taskAssigneeRole')?.value.trim() || null;
 
-          const task={
-            id:'tsk_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
-            title,
-            description:byId('taskDescription')?.value.trim() || '',
-            priority:byId('taskPriority')?.value || 'medium',
-            points:Number(byId('taskPoints')?.value)||0,
-            due: byId('taskDue')?.value || null,
-            assigneeId: chosenAssignee,
-            assigneeRole: roleText,
-            status:'backlog'
-          };
+      const task={
+        id:'tsk_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+        title,
+        description:byId('taskDescription')?.value.trim() || '',
+        priority:byId('taskPriority')?.value || 'medium',
+        points:Number(byId('taskPoints')?.value)||0,
+        due: byId('taskDue')?.value || null,
+        assigneeId: chosenAssignee,
+        assigneeRole: roleText,
+        status: targetStatus
+      };
 
-          team.tasks.push(task);
-          saveCurrentWorkspace();
-          close();
-          renderBoard(teamName);
-          enableDnD(teamName);
+      team.tasks.push(task);
+      saveCurrentWorkspace();
+      close();
+      renderBoard(teamName);
+      enableDnD(teamName);
         };
       }
     }, 0);
@@ -1141,6 +1187,108 @@ window.selectOption=selectOption;
 window.focusTagInput=focusTagInput;
 window.handleTeamInput=handleTeamInput;
 window.handleCategoryInput=handleCategoryInput;
+
+
+window.showAddTaskToColumnModal=function(targetStatus){ showAddTaskModal(state.currentTeam, targetStatus); };
+
+function showAddTaskToColumnModal(targetStatus){
+  const teamName = state.currentTeam;
+  if(!teamName) return;
+  
+  ensureTeamExists(teamName);
+  const team=state.teams[teamName];
+  const isPersonal = state.workspace.type === 'personal';
+
+  const memberOptions = !isPersonal ? team.members.map(id=>{
+    const a=state.avatars.find(v=>v.id===id);
+    const nm = a ? a.name : id;
+    return `<option value="${id}">${nm}</option>`;
+  }).join('') : '';
+
+  const assigneeSection = !isPersonal ? `
+    <div class="form-group">
+      <label>Assignee (optional)</label>
+      <select id="taskAssignee" class="form-control">
+        <option value="">— Choose member (optional) —</option>
+        ${memberOptions}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Or by Role (optional)</label>
+      <input id="taskAssigneeRole" class="form-control" placeholder="e.g., QA, Team Lead, Designer" />
+    </div>` : '';
+
+  const modal=buildModal(`Add Task to ${getColumnDisplayName(targetStatus)}`,(body,close)=>{
+    body.innerHTML=`
+      <form id="addTaskForm" class="modal-form">
+        <div class="form-group">
+          <label>Task Title</label>
+          <input id="taskTitle" class="form-control" required />
+        </div>
+
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="taskDescription" class="form-control" rows="3"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Due date</label>
+          <input id="taskDue" type="date" class="form-control" />
+        </div>
+
+        ${assigneeSection}
+
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="taskPriority" class="form-control">
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Points</label>
+          <input id="taskPoints" type="number" class="form-control" min="1" max="500" value="10" />
+        </div>
+
+        <div class="modal-buttons">
+          <button type="button" id="cancelBtn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Task</button>
+        </div>
+      </form>`;
+
+    setTimeout(() => {
+      const cancelBtn = byId('cancelBtn'); if (cancelBtn) cancelBtn.onclick = close;
+
+      const addTaskForm = byId('addTaskForm');
+      if (addTaskForm) {
+        addTaskForm.onsubmit = (e) => {
+          e.preventDefault();
+          const title = byId('taskTitle')?.value.trim();
+          if(!title){ toast('Please enter task title'); return; }
+
+          const chosenAssignee = !isPersonal ? (byId('taskAssignee')?.value || null) : state.currentUserId;
+          const roleText = !isPersonal ? (byId('taskAssigneeRole')?.value.trim() || null) : null;
+
+        };
+      }
+    }, 0);
+  });
+  document.body.appendChild(modal);
+}
+
+function getColumnDisplayName(status){
+  switch(status){
+    case 'todo': return 'TODO';
+    case 'in-progress': return 'In Progress';
+    case 'waiting': return 'Waiting for Approval';
+    case 'done': return 'Done';
+    default: return status;
+  }
+}
+
 
 document.addEventListener('DOMContentLoaded', ()=>{
   // כפתור Sign In הראשי מהעמוד הראשון

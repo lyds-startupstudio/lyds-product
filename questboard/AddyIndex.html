@@ -113,8 +113,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Job Title</label>
-            <input id="jobTitle" class="form-control" placeholder="Enter your role" required/>
-          </div>
+            <input id="jobTitle" class="form-control" placeholder="Enter your role (optional)"/>          </div>
 
           <!-- Business only: Team selection -->
           <div class="form-group" id="teamSelectionGroup" style="display:none;">
@@ -243,45 +242,57 @@
 
       <!-- Kanban (other columns) -->
       <div class="kanban-board">
-        <div class="kanban-column todo-column">
-          <div class="column-header todo-header">
-            <div class="column-left">
-              <span class="column-title">📋 TODO</span>
-            </div>
+      <div class="kanban-column todo-column">
+        <div class="column-header todo-header">
+          <div class="column-left">
+            <span class="column-title">📋 TODO</span>
+          </div>
+          <div class="column-right">
+            <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('todo')">+</button>
             <span id="todoCount" class="column-count">0</span>
           </div>
-          <div id="todoTasks" class="column-content" data-status="todo"></div>
         </div>
+        <div id="todoTasks" class="column-content" data-status="todo"></div>
+      </div>
 
-        <div class="kanban-column progress-column">
-          <div class="column-header progress-header">
-            <div class="column-left">
-              <span class="column-title">🔥 In Progress</span>
-            </div>
+      <div class="kanban-column progress-column">
+        <div class="column-header progress-header">
+          <div class="column-left">
+            <span class="column-title">🔥 In Progress</span>
+          </div>
+          <div class="column-right">
+            <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('in-progress')">+</button>
             <span id="progressCount" class="column-count">0</span>
           </div>
-          <div id="progressTasks" class="column-content" data-status="in-progress"></div>
         </div>
+        <div id="progressTasks" class="column-content" data-status="in-progress"></div>
+      </div>
 
-        <div class="kanban-column waiting-column">
-          <div class="column-header waiting-header">
-            <div class="column-left">
-              <span class="column-title">⏳ Waiting for approvment</span>
-            </div>
+      <div class="kanban-column waiting-column">
+        <div class="column-header waiting-header">
+          <div class="column-left">
+            <span class="column-title">⏳ Waiting for approvment</span>
+          </div>
+          <div class="column-right">
+            <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('waiting')">+</button>
             <span id="waitingCount" class="column-count">0</span>
           </div>
-          <div id="waitingTasks" class="column-content" data-status="waiting"></div>
         </div>
+        <div id="waitingTasks" class="column-content" data-status="waiting"></div>
+      </div>
 
-        <div class="kanban-column done-column">
-          <div class="column-header done-header">
-            <div class="column-left">
-              <span class="column-title">✅ Done</span>
-            </div>
+      <div class="kanban-column done-column">
+        <div class="column-header done-header">
+          <div class="column-left">
+            <span class="column-title">✅ Done</span>
+          </div>
+          <div class="column-right">
+            <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('done')">+</button>
             <span id="doneCount" class="column-count">0</span>
           </div>
-          <div id="doneTasks" class="column-content" data-status="done"></div>
         </div>
+        <div id="doneTasks" class="column-content" data-status="done"></div>
+      </div>
       </div>
     </div>
   </div>

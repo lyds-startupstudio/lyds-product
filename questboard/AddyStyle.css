@@ -131,9 +131,9 @@ html,body{margin:0;padding:0;font-family:var(--font);color:var(--color-slate-900
 .belt-right{display:flex;align-items:center;gap:8px}
 .belt-count{background:#0f172a;color:#fff;border-radius:999px;min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px}
 .belt-viewport{position:relative;background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(255,255,255,.92));border:1px solid #e8e8ec;border-radius:20px;overflow:hidden}
-.belt-track{display:flex;gap:12px;align-items:stretch;padding:12px;animation: belt-scroll var(--belt-speed) linear infinite}
+.belt-track{display:flex;gap:12px;align-items:stretch;padding:12px;animation: belt-scroll var(--belt-speed) linear infinite;white-space:nowrap}
 .belt-viewport[data-paused="true"] .belt-track{animation:none;flex-wrap:wrap;overflow-y:auto;max-height:300px}
-@keyframes belt-scroll{ from{ transform:translateX(0) } to{ transform:translateX(-50%) } }
+@keyframes belt-scroll{ from{ transform:translateX(100%) } to{ transform:translateX(-50%) } }
 .belt-viewport.drag-over{outline:2px dashed #4F46E5; outline-offset:-6px; border-radius:16px;}
 
 /* Board (other columns) */
@@ -146,6 +146,9 @@ html,body{margin:0;padding:0;font-family:var(--font);color:var(--color-slate-900
 .column-left{display:flex;flex-direction:column}
 .column-title{font-weight:800;letter-spacing:.2px}
 .column-count{background:#0f172a;color:#fff;border-radius:999px;min-width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px}
+.column-right{display:flex;align-items:center;gap:8px}
+.add-task-column-btn{background:#4F46E5;color:#fff;border:none;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;font-weight:bold}
+.add-task-column-btn:hover{background:#3730a3}
 .column-content{flex:1;padding:14px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:calc(100vh - 300px)}
 .column-content.drag-over{outline:2px dashed #4F46E5; outline-offset:-6px; border-radius:16px; background:rgba(79,70,229,.04)}
 
