@@ -14,6 +14,10 @@
         <div class="setup-topbar">
           <!-- כפתור התחברות כללי מעמוד פתיחה (גם Personal וגם Business) -->
           <button id="globalSignInBtn" class="btn btn-secondary btn-auth">Sign In</button>
+          <!-- Forgot password trigger (added) -->
+          <button id="btnForgotPwd" class="btn-link" type="button" aria-haspopup="dialog" aria-controls="dialog-extra-verify">
+            Forgot password
+          </button>
         </div>
         <div class="setup-logo">QuestBoard</div>
         <h1 class="setup-title">Setup Your Workspace</h1>
@@ -173,6 +177,7 @@
             </div>
           </div>
         </div>
+        <button type="button" id="signOutBtn" class="btn btn-secondary" style="margin-left:12px;">Sign Out</button>
       </header>
 
       <div id="officeLayout" class="office-layout">
@@ -297,6 +302,118 @@
     </div>
   </div>
 
+  <!-- Extra Verification modal (added) -->
+  <div id="dialog-extra-verify" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="extraVerifyTitle" aria-describedby="extraVerifyDesc">
+    <div class="modal-card" role="document">
+      <h2 id="extraVerifyTitle">Extra verification</h2>
+      <p id="extraVerifyDesc" class="modal-desc">
+        Enter your username and your additional identifier.
+      </p>
+
+      <label class="form-row">Username
+        <input id="ev-username" type="text" autocomplete="username" required>
+      </label>
+
+      <label class="form-row">Recovery code
+        <input id="ev-extra" type="text" autocomplete="one-time-code" required>
+      </label>
+
+      <div class="modal-actions">
+        <button id="ev-cancel" class="btn-secondary" type="button">Cancel</button>
+        <button id="ev-submit" class="btn-primary" type="button">Continue</button>
+      </div>
+
+      <p class="neutral-hint">
+        If details match, we’ll proceed to reset.
+      </p>
+    </div>
+  </div>
+
+  <!-- Reset Password modal (added) -->
+  <div id="dialog-reset-pwd" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="resetPwdTitle" aria-describedby="resetPwdDesc">
+    <div class="modal-card" role="document">
+      <h2 id="resetPwdTitle">Reset password</h2>
+      <p id="resetPwdDesc" class="modal-desc">
+        Choose a strong password. You can view it while typing.
+      </p>
+
+      <label class="form-row">New password
+        <input id="rp-new" type="password" autocomplete="new-password" required>
+      </label>
+
+      <label class="form-row">Confirm password
+        <input id="rp-confirm" type="password" autocomplete="new-password" required>
+      </label>
+
+      <label class="inline">
+        <input id="rp-show" type="checkbox"> Show password
+      </label>
+
+      <ul id="rp-requirements" class="req-list" aria-live="polite">
+        <li data-req="len">At least 8 characters (support up to 64+)</li>
+        <li data-req="common">Not a common or breached password</li>
+      </ul>
+
+      <div class="modal-actions">
+        <button id="rp-cancel" class="btn-secondary" type="button">Cancel</button>
+        <button id="rp-submit" class="btn-primary" type="button" disabled>Save new password</button>
+      </div>
+    </div>
+  </div>
+
   <script src="AddyApp.js"></script>
+  <!-- Extra Verification modal -->
+<div id="dialog-extra-verify" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="extraVerifyTitle" aria-describedby="extraVerifyDesc">
+  <div class="modal-card" role="document">
+    <h2 id="extraVerifyTitle">Extra verification</h2>
+    <p id="extraVerifyDesc" class="modal-desc">Enter your username and your additional identifier.</p>
+
+    <label class="form-row">Username
+      <input id="ev-username" type="text" autocomplete="username" required>
+    </label>
+
+    <label class="form-row">Recovery code
+      <input id="ev-extra" type="text" autocomplete="one-time-code" required>
+    </label>
+
+    <div class="modal-actions">
+      <button id="ev-cancel" class="btn-secondary" type="button">Cancel</button>
+      <button id="ev-submit" class="btn-primary" type="button">Continue</button>
+    </div>
+
+    <p id="ev-error" class="neutral-hint" style="min-height:1em"></p>
+  </div>
+</div>
+
+<!-- Reset Password modal -->
+<div id="dialog-reset-pwd" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="resetPwdTitle" aria-describedby="resetPwdDesc">
+  <div class="modal-card" role="document">
+    <h2 id="resetPwdTitle">Reset password</h2>
+    <p id="resetPwdDesc" class="modal-desc">Choose a strong password. You can view it while typing.</p>
+
+    <label class="form-row">New password
+      <input id="rp-new" type="password" autocomplete="new-password" required>
+    </label>
+
+    <label class="form-row">Confirm password
+      <input id="rp-confirm" type="password" autocomplete="new-password" required>
+    </label>
+
+    <label class="inline">
+      <input id="rp-show" type="checkbox"> Show password
+    </label>
+
+    <ul id="rp-requirements" class="req-list" aria-live="polite">
+      <li data-req="len">At least 8 characters (up to 128)</li>
+      <li data-req="common">Not a common/breached password</li>
+    </ul>
+
+    <div class="modal-actions">
+      <button id="rp-cancel" class="btn-secondary" type="button">Cancel</button>
+      <button id="rp-submit" class="btn-primary" type="button" disabled>Save new password</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

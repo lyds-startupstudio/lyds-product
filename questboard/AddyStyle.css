@@ -432,3 +432,63 @@ html {
 .belt-track {
   scroll-behavior: smooth;
 }
+/* ==== Password reset modals ==== */
+.modal.hidden { display: none; }
+.modal { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,0.5); z-index: 1000; }
+.modal-card { width: min(520px, 92vw); background: #fff; color: #111; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.25); padding: 20px 22px; outline: none; }
+.modal-desc { margin: 6px 0 14px; color: #555; }
+
+.form-row { display: block; margin: 10px 0; }
+.form-row input { width: 100%; }
+.inline { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; }
+
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+.btn-link { background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer; font: inherit; }
+
+.req-list { margin: 10px 0 0; padding-left: 18px; }
+.req-list li { margin: 4px 0; }
+.req-list li.ok { color: #1a7f37; font-weight: 600; }
+.req-list li.bad { color: #b42318; }
+
+.neutral-hint { margin-top: 8px; color: #666; font-size: 13px; }
+
+/* Focus outlines for a11y (modal focus trapping per APG dialog guidance) */
+button:focus, input:focus { outline: 2px solid #3b82f6; outline-offset: 2px; }
+/* ===== Recovery dialogs should sit above any JS modal ===== */
+#dialog-extra-verify,
+#dialog-reset-pwd {
+  position: fixed;    /* attach to viewport, not to any container */
+  inset: 0;           /* top/right/bottom/left: 0 */
+  z-index: 2000;      /* higher than your JS modals (which are ~1000–1500) */
+}
+
+#dialog-extra-verify .modal-card,
+#dialog-reset-pwd .modal-card {
+  position: relative;
+  margin: 4rem auto;
+  max-width: 720px;   /* keep your look & feel */
+  z-index: 2001;      /* above their own overlay */
+}
+
+/* If you have a generic .modal overlay already, make sure it's lower */
+.modal { z-index: 1000; } /* your JS-created buildModal() instances */
+/* Make sure verification/reset dialogs are always above other modals */
+#dialog-extra-verify,
+#dialog-reset-pwd {
+  position: fixed;
+  inset: 0;
+  z-index: 10000; /* higher than your sign-in modal */
+}
+
+/* tiny shake helper for a neutral error cue */
+.modal-card.shake {
+  animation: qb-shake 0.25s linear 1;
+}
+@keyframes qb-shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* optional: subtle error text */
+#ev-error { color: var(--color-text-secondary); }

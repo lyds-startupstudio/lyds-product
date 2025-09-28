@@ -23,6 +23,17 @@ const state = {
 
 /** ==== Persistence (localStorage) ==== **/
 const LS_KEY = 'QB_workspaces_v1'; // map: id -> { id,type,login:{u,p}, data:<serializedState> }
+const LS_ACTIVE = 'QB_active_session_v1';
+
+function saveActiveSession(session){
+  localStorage.setItem(LS_ACTIVE, JSON.stringify(session || null));
+}
+function readActiveSession(){
+  try { return JSON.parse(localStorage.getItem(LS_ACTIVE) || 'null'); }
+  catch(e){ return null; }
+}
+function clearActiveSession(){ localStorage.removeItem(LS_ACTIVE); }
+/////
 function readStore(){
   try { return JSON.parse(localStorage.getItem(LS_KEY)||'{}'); } catch(e){ return {}; }
 }
@@ -93,6 +104,82 @@ function showScreen(k){
   if (screens[k]) screens[k].classList.add('active');
 }
 
+// ===== AddyAuth adapter (workspace accounts) =====
+window.AddyAuth = window.AddyAuth || (function(){
+  const WS_KEY = 'addy_workspaces';
+
+  function listWorkspaces(){
+    try { const arr = JSON.parse(localStorage.getItem(WS_KEY) || '[]'); return Array.isArray(arr) ? arr : []; }
+    catch(e){ return []; }
+  }
+  function saveWorkspaces(arr){ localStorage.setItem(WS_KEY, JSON.stringify(arr || [])); }
+
+  function findWorkspaceByUsername(username){
+    const u = (username||'').toLowerCase();
+    return listWorkspaces().find(w => (w.username||'').toLowerCase() === u);
+  }
+  function updateWorkspacePassword(usernameOrId, newPassword){
+    const arr = listWorkspaces();
+    const idx = arr.findIndex(w => (w.id||w.username) === usernameOrId || (w.username||'') === usernameOrId);
+    if (idx >= 0) { arr[idx].password = newPassword; saveWorkspaces(arr); return true; }
+    return false;
+  }
+
+  function ensureRecoveryCode(ws){
+    if (ws.recoveryCode) return ws;
+    ws.recoveryCode = generateRecoveryCode();
+    // persist if already stored
+    const arr = listWorkspaces();
+    const i = arr.findIndex(w => (w.id||w.username) === (ws.id||ws.username));
+    if (i >= 0) { arr[i] = ws; saveWorkspaces(arr); }
+    return ws;
+  }
+  function generateRecoveryCode(){
+    const A = ['BLUE','SAGE','ONYX','AMBER','IVORY','SCARLET','INDIGO','COPPER'];
+    const B = ['RAVEN','OTTER','LYNX','ORCA','PANDA','IBIS','FALCON','KOI'];
+    return `${A[Math.floor(Math.random()*A.length)]}-${B[Math.floor(Math.random()*B.length)]}-${Math.floor(100+Math.random()*900)}`;
+  }
+    // ---- QB store wrappers used by the reset flow ----
+  function _listQB(){
+    const m = readStore(); // { id -> ws }
+    return Object.values(m || {});
+  }
+  function findUserByUsername(username){
+    const u = (username||'').toLowerCase();
+    const ws = _listQB().find(x => (x.login?.username||'').toLowerCase() === u);
+    if (!ws) return null;
+    // ensure a recovery code
+    if (!ws.login) ws.login = {};
+    if (!ws.login.recoveryCode) {
+      ws.login.recoveryCode = generateRecoveryCode();
+      const s = readStore(); s[ws.id] = ws; writeStore(s);
+    }
+    return { id: ws.id, username: ws.login.username, additionalIdentifier: ws.login.recoveryCode };
+  }
+  function updateUserPasswordById(idOrUsername, newPassword){
+    const s = readStore();
+    let ws = s[idOrUsername];
+    if (!ws) {
+      ws = Object.values(s).find(x => (x.login?.username||'') === idOrUsername);
+    }
+    if (!ws) return false;
+    ws.login = ws.login || {};
+    ws.login.password = newPassword;
+    s[ws.id] = ws; writeStore(s);
+    return true;
+  }
+
+
+  return {
+    listWorkspaces, saveWorkspaces,
+    findWorkspaceByUsername, updateWorkspacePassword,
+    ensureRecoveryCode, generateRecoveryCode,
+    // wrappers used by the reset flow (QB store)
+    findUserByUsername, updateUserPasswordById
+  };
+})();
+
+
 /* ===========================
    Setup Wizard (with auth flow)
    =========================== */
@@ -139,6 +226,18 @@ function nextStep(){
       renderPlatformForUser(); // יסתדר גם אם currentUserId=null
       showScreen('platform');
       toast('Business workspace created. You can now create or sign in as an employee.');
+      // ensure a recovery code exists on this workspace and show it once
+const store = readStore();
+const wsObj = store[state.workspace.id];
+if (wsObj) {
+  wsObj.login = wsObj.login || {};
+  if (!wsObj.login.recoveryCode) {
+    // reuse the generator from AddyAuth adapter
+    wsObj.login.recoveryCode = window.AddyAuth.generateRecoveryCode();
+    writeStore(store);
+  }
+  alert('Save this recovery code (your additional identifier): ' + wsObj.login.recoveryCode);
+}
     });
     return;
   }
@@ -279,6 +378,18 @@ if(form){
           saveCurrentWorkspace();
           renderPlatformForUser(); showScreen('platform'); form.reset();
           toast('Personal workspace created and saved.');
+          // ensure a recovery code exists on this workspace and show it once
+const store = readStore();
+const wsObj = store[state.workspace.id];
+if (wsObj) {
+  wsObj.login = wsObj.login || {};
+  if (!wsObj.login.recoveryCode) {
+    // reuse the generator from AddyAuth adapter
+    wsObj.login.recoveryCode = window.AddyAuth.generateRecoveryCode();
+    writeStore(store);
+  }
+  alert('Save this recovery code (your additional identifier): ' + wsObj.login.recoveryCode);
+}
         });
         return;
       }
@@ -335,8 +446,11 @@ function renderPlatformForUser(){
       employeeSignInBtn.onclick=()=>showEmployeeSignInModal();
     }
   }
+const signOutBtn = byId('signOutBtn');
+if (signOutBtn) signOutBtn.onclick = signOut;
 
   startOfficeControls();
+  
 }
 function getCurrentUser(){ return state.avatars.find(a=>a.id===state.currentUserId)||null; }
 function updateTeamPointsDisplay(){
@@ -1060,40 +1174,74 @@ function showGlobalSignInModal(){
           <label>Workspace Username</label>
           <input id="siWsUser" class="form-control" placeholder="Your workspace username">
         </div>
+
         <div class="form-group">
           <label>Workspace Password</label>
           <input id="siWsPass" type="password" class="form-control" placeholder="Your workspace password">
         </div>
+
+        <div class="form-group">
+          <button id="btnForgotPwd" class="btn-link" type="button" aria-haspopup="dialog" aria-controls="dialog-extra-verify">
+            Forgot password?
+          </button>
+        </div>
+
         <div class="modal-buttons">
           <button type="button" id="siCancel" class="btn btn-secondary">Cancel</button>
           <button type="submit" class="btn btn-primary">Sign In</button>
         </div>
         <div class="small-hint">Personal = one user; Business = add or sign in employees.</div>
       </form>`;
+
     setTimeout(()=>{
+      // Close modal
       byId('siCancel').onclick=close;
+
+      // Submit sign-in
       byId('globalSignInForm').onsubmit=(e)=>{
         e.preventDefault();
-        const u=byId('siWsUser').value.trim(), p=byId('siWsPass').value;
+        const u=byId('siWsUser').value.trim();
+        const p=byId('siWsPass').value;         // <-- this now exists again
         const ws = signInWorkspace(u,p);
         if(!ws){ toast('Workspace not found or wrong password'); return; }
 
-        // Personal: יש אווטאר אחד — נחבר אותו כ-currentUser
         if(ws.type==='personal'){
           const first = state.avatars[0];
           state.currentUserId = first?.id || null;
-        }else{
-          state.currentUserId = null; // במודל עסקי – עובד צריך להתחבר בנפרד
+        } else {
+          state.currentUserId = null;
         }
-        saveCurrentWorkspace(); // עדכון קטן אם צריך
+        // after setting state.currentUserId and before renderPlatformForUser()
+saveActiveSession({
+  wsId: state.workspace.id,              // set by hydrateFrom(found)
+  type: state.workspace.type,            // 'personal' | 'business'
+  employeeId: state.currentUserId || null
+});
+
+        saveCurrentWorkspace();
         renderPlatformForUser(); showScreen('platform');
         close();
         toast('Signed in.');
+      };
+
+      // Forgot password: close Sign-In first, then open Extra verification
+      const fp = byId('btnForgotPwd');
+      if (fp) fp.onclick = () => {
+        const typedUser = byId('siWsUser')?.value.trim() || '';
+        close(); // hide this modal to prevent overlap
+
+        // prefill username if user already typed it
+        const u = byId('ev-username');
+        if (u && typedUser) u.value = typedUser;
+
+        const dlg = document.getElementById('dialog-extra-verify');
+        openModal(dlg, '#ev-username');
       };
     },0);
   });
   document.body.appendChild(modal);
 }
+
 
 // התחברות עובד (במודל עסקי) לפי שם משתמש/סיסמה שהוגדרו בזמן יצירת האווטאר
 function showEmployeeSignInModal(){
@@ -1121,6 +1269,12 @@ function showEmployeeSignInModal(){
         const found = state.avatars.find(a=>a.login?.username===u && a.login?.password===p);
         if(!found){ toast('User not found'); return; }
         state.currentUserId = found.id;
+        saveActiveSession({
+  wsId: state.workspace.id,
+  type: state.workspace.type,
+  employeeId: found.id
+});
+
         saveCurrentWorkspace();
         close();
         renderPlatformForUser();
@@ -1174,9 +1328,22 @@ function toast(msg){
     borderRadius:'8px',
     zIndex:'2000'
   });
+  
+  function signOut(){
+  clearActiveSession?.();          // if you added the session helpers
+  state.currentUserId = null;      // forget the active user
+  showScreen('setup');             // go back to the start screen
+}
+
   document.body.appendChild(n);
   setTimeout(()=>n.remove(),1600);
 }
+function signOut(){
+  try { clearActiveSession?.(); } catch(e) {}
+  state.currentUserId = null;
+  showScreen('setup');      // or show the Sign-In modal if you prefer
+}
+
 
 /* ===========================
    Wire up
@@ -1294,6 +1461,195 @@ document.addEventListener('DOMContentLoaded', ()=>{
   // כפתור Sign In הראשי מהעמוד הראשון
   const globalBtn = byId('globalSignInBtn');
   if(globalBtn) globalBtn.onclick = showGlobalSignInModal;
+  document.addEventListener('DOMContentLoaded', ()=>{
+  const globalBtn = byId('globalSignInBtn');
+  if(globalBtn) globalBtn.onclick = showGlobalSignInModal;
+
+  // --- auto-restore previously signed-in session ---
+  const sess = readActiveSession();
+  if (sess && sess.wsId) {
+    const store = readStore();
+    const ws = store[sess.wsId];
+    if (ws) {
+      hydrateFrom(ws);                            // load workspace data
+      if (ws.type === 'personal') {
+        state.currentUserId = state.avatars[0]?.id || null;
+      } else if (sess.employeeId) {
+        state.currentUserId = sess.employeeId;    // reopen the same employee
+      }
+      renderPlatformForUser();
+      showScreen('platform');
+      return; // stop: we restored the session
+    }
+  }
+  // no session -> normal flow
+  gotoStep(0);
+});
+
 
   gotoStep(0);
 });
+// ---------- Forgot Password flow wiring ----------
+(function initForgotPasswordFlow(){
+  const dlgVerify = document.getElementById('dialog-extra-verify');
+  const dlgReset  = document.getElementById('dialog-reset-pwd');
+  if(!dlgVerify || !dlgReset) return;
+
+  // Delegate click so it works even when the button is injected in a modal
+  document.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'btnForgotPwd') {
+      // Close any open sign-in modal first, then bring verify dialog to top and open it
+const openTop = (el) => { document.body.appendChild(el); }; // move to end of <body>
+
+evUser.value = '';
+evExtra.value = '';
+
+// If you're calling from the Sign-in modal, it’s already closing;
+// moving the dialog after <body> ensures DOM order is last = top
+openTop(dlgVerify);
+openTop(dlgReset);  // also move the reset dialog once so it’s above later
+openModal(dlgVerify, '#ev-username');
+
+    }
+  });
+
+  // Focus management for ARIA modal dialogs (trap focus; Esc to close)
+  let lastActive = null;
+  function openModal(modal, firstFocusableSelector){
+    lastActive = document.activeElement;
+    modal.classList.remove('hidden');
+    const first = modal.querySelector(firstFocusableSelector)
+      || modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if(first) first.focus();
+    trapFocus(modal);
+    document.addEventListener('keydown', escClose, { once: true });
+  }
+  function closeModal(modal){
+    untrapFocus(modal);
+    modal.classList.add('hidden');
+    if(lastActive) lastActive.focus();
+  }
+  function escClose(e){
+    if(e.key === 'Escape'){
+      document.querySelectorAll('.modal:not(.hidden)').forEach(m=>closeModal(m));
+    }
+  }
+  function trapFocus(container){
+    function handler(e){
+      if(e.key !== 'Tab') return;
+      const f = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if(!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if(e.shiftKey && document.activeElement === first){ last.focus(); e.preventDefault(); }
+      else if(!e.shiftKey && document.activeElement === last){ first.focus(); e.preventDefault(); }
+    }
+    container._trapHandler = handler;
+    container.addEventListener('keydown', handler);
+  }
+  function untrapFocus(container){
+    container.removeEventListener('keydown', container._trapHandler || (()=>{}));
+    container._trapHandler = null;
+  }
+
+  // Elements: verify dialog
+  const evUser   = document.getElementById('ev-username');
+  const evExtra  = document.getElementById('ev-extra');
+  const evCancel = document.getElementById('ev-cancel');
+  const evSubmit = document.getElementById('ev-submit');
+
+  // Elements: reset dialog
+  const rpNew     = document.getElementById('rp-new');
+  const rpConfirm = document.getElementById('rp-confirm');
+  const rpShow    = document.getElementById('rp-show');
+  const rpReqs    = document.getElementById('rp-requirements');
+  const rpCancel  = document.getElementById('rp-cancel');
+  const rpSubmit  = document.getElementById('rp-submit');
+
+  // State passed from verify -> reset (memory only)
+  let _verifiedUserId = null;
+
+ 
+
+  // Cancel verify
+  evCancel.addEventListener('click', () => closeModal(dlgVerify));
+
+  // Submit verify (neutral feedback—no enumeration)
+  evSubmit.addEventListener('click', () => {
+  const username = evUser.value.trim();
+  const extra    = evExtra.value.trim();
+  _verifiedUserId = null;
+
+  // Look up user in your QB (localStorage) workspace store
+  const user = (typeof window.AddyAuth?.findUserByUsername === 'function')
+    ? window.AddyAuth.findUserByUsername(username)
+    : null;
+
+  // Match against recovery code (additional identifier)
+  const ok = !!(user && (user.additionalIdentifier || '').trim().toLowerCase() === extra.toLowerCase());
+  if (ok) {
+    _verifiedUserId = user.id || user.username;
+    closeModal(dlgVerify);
+
+    // prepare reset dialog
+    rpNew.value = '';
+    rpConfirm.value = '';
+    rpSubmit.disabled = true;
+    updateStrengthUI();
+
+    openModal(dlgReset, '#rp-new');   // <-- now you’ll see the Reset Password dialog
+  } else {
+    // Neutral failure UX (no enumeration): keep dialog open, subtle cue, clear code input
+    const card = dlgVerify.querySelector('.modal-card');
+    const err  = document.getElementById('ev-error');
+    if (card) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
+    if (err)  { err.textContent = 'If details match, we’ll proceed to reset.'; } // neutral text (see OWASP/Stytch)
+    evExtra.value = '';
+    evExtra.focus();
+  }
+});
+
+
+  // Reset dialog behavior
+  rpCancel.addEventListener('click', () => { _verifiedUserId = null; closeModal(dlgReset); });
+
+  rpShow.addEventListener('change', () => {
+    const type = rpShow.checked ? 'text' : 'password';
+    rpNew.type = type; rpConfirm.type = type;
+  });
+
+  function isCommonPassword(pw){
+    const trivial = ['password','123456','qwerty','letmein','admin','iloveyou','welcome'];
+    return trivial.includes(pw.toLowerCase());
+  }
+  function meetsPolicy(pw){
+    const okLen = pw.length >= 8 && pw.length <= 128;
+    const notCommon = !isCommonPassword(pw);
+    return { okLen, notCommon, all: okLen && notCommon };
+  }
+  function updateStrengthUI(){
+    const pw = rpNew.value;
+    const m  = meetsPolicy(pw);
+    rpReqs.querySelector('[data-req="len"]').className    = m.okLen ? 'ok' : 'bad';
+    rpReqs.querySelector('[data-req="common"]').className = m.notCommon ? 'ok' : 'bad';
+    const matches = pw.length > 0 && pw === rpConfirm.value;
+    rpSubmit.disabled = !(m.all && matches);
+  }
+  rpNew.addEventListener('input', updateStrengthUI);
+  rpConfirm.addEventListener('input', updateStrengthUI);
+
+  rpSubmit.addEventListener('click', () => {
+    if(!_verifiedUserId) return;
+    const pw = rpNew.value, conf = rpConfirm.value;
+    const m = meetsPolicy(pw);
+    if(!(m.all && pw === conf)) return;
+
+    const ok = (typeof window.AddyAuth?.updateUserPasswordById === 'function')
+      ? window.AddyAuth.updateUserPasswordById(_verifiedUserId, pw)
+      : false;
+
+    _verifiedUserId = null;
+    closeModal(dlgReset);
+    // Optional: toast(ok ? 'Password updated. You can now sign in.' : 'Password updated in session.');
+  });
+})();
+
