@@ -21,8 +21,8 @@ const state = {
   workspace: { id:null, type:null, login:null } // login:{username,password}
 };
 
-/** ==== Persistence (localStorage) ==== **/
-const LS_KEY = 'QB_workspaces_v1'; // map: id -> { id,type,login:{u,p}, data:<serializedState> }
+/** ==== Enhanced Persistence (localStorage + IndexedDB + Export/Import) ==== **/
+const LS_KEY = 'QB_workspaces_v1';
 const LS_ACTIVE = 'QB_active_session_v1';
 
 function saveActiveSession(session){
@@ -33,30 +33,135 @@ function readActiveSession(){
   catch(e){ return null; }
 }
 function clearActiveSession(){ localStorage.removeItem(LS_ACTIVE); }
-/////
+
 function readStore(){
   try { return JSON.parse(localStorage.getItem(LS_KEY)||'{}'); } catch(e){ return {}; }
 }
 function writeStore(store){ localStorage.setItem(LS_KEY, JSON.stringify(store)); }
 function generateId(prefix){ return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2,8)}`; }
 
-// Save current workspace state
+// יצירת טביעת אצבע של המכשיר
+function getDeviceFingerprint() {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.textBaseline = 'top';
+  ctx.font = '14px Arial';
+  ctx.fillText('Device fingerprint', 2, 2);
+  
+  return btoa(JSON.stringify({
+    screen: `${screen.width}x${screen.height}`,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    language: navigator.language,
+    platform: navigator.platform,
+    canvas: canvas.toDataURL().slice(-50),
+    userAgent: navigator.userAgent.slice(0, 100)
+  }));
+}
+
+// Save current workspace state - ENHANCED VERSION
 function saveCurrentWorkspace(){
   if(!state.workspace.id) return;
   const store = readStore();
-  // serialize minimal public state
+  
+  // serialize with timestamp
   const data = {
     setup: state.setup,
     avatars: state.avatars,
-    teams: state.teams
+    teams: state.teams,
+    lastUpdated: new Date().toISOString()
   };
+  
   store[state.workspace.id] = {
     id: state.workspace.id,
     type: state.workspace.type,
-    login: state.workspace.login, // {username,password} (Demo only)
-    data
+    login: state.workspace.login,
+    data,
+    createdAt: store[state.workspace.id]?.createdAt || new Date().toISOString(),
+    deviceFingerprint: getDeviceFingerprint()
   };
+  
   writeStore(store);
+  
+  // גיבוי ב-IndexedDB
+  saveToIndexedDB(state.workspace.id, store[state.workspace.id]);
+}
+
+// שמירה ב-IndexedDB כגיבוי
+async function saveToIndexedDB(workspaceId, workspaceData) {
+  try {
+    const dbName = 'QuestBoardDB';
+    const request = indexedDB.open(dbName, 1);
+    
+    request.onupgradeneeded = function(event) {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('workspaces')) {
+        db.createObjectStore('workspaces', { keyPath: 'id' });
+      }
+    };
+    
+    request.onsuccess = function(event) {
+      const db = event.target.result;
+      const transaction = db.transaction(['workspaces'], 'readwrite');
+      const store = transaction.objectStore('workspaces');
+      store.put(workspaceData);
+    };
+  } catch (error) {
+    console.log('IndexedDB not available:', error);
+  }
+}
+
+// קריאה מ-IndexedDB
+async function loadFromIndexedDB(workspaceId) {
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.open('QuestBoardDB', 1);
+      request.onsuccess = function(event) {
+        const db = event.target.result;
+        const transaction = db.transaction(['workspaces'], 'readonly');
+        const store = transaction.objectStore('workspaces');
+        const getRequest = store.get(workspaceId);
+        
+        getRequest.onsuccess = function() {
+          resolve(getRequest.result || null);
+        };
+        getRequest.onerror = function() {
+          resolve(null);
+        };
+      };
+      request.onerror = function() {
+        resolve(null);
+      };
+    } catch (error) {
+      resolve(null);
+    }
+  });
+}
+
+// קבלת כל ה-workspaces מ-IndexedDB
+async function getAllWorkspacesFromIndexedDB() {
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.open('QuestBoardDB', 1);
+      request.onsuccess = function(event) {
+        const db = event.target.result;
+        const transaction = db.transaction(['workspaces'], 'readonly');
+        const store = transaction.objectStore('workspaces');
+        const getAllRequest = store.getAll();
+        
+        getAllRequest.onsuccess = function() {
+          resolve(getAllRequest.result || []);
+        };
+        getAllRequest.onerror = function() {
+          resolve([]);
+        };
+      };
+      request.onerror = function() {
+        resolve([]);
+      };
+    } catch (error) {
+      resolve([]);
+    }
+  });
 }
 
 // Create a new workspace shell (no data yet)
@@ -69,11 +174,30 @@ function createWorkspace(type, username, password){
   return id;
 }
 
-// Try to sign in to workspace
-function signInWorkspace(username, password){
+// Try to sign in to workspace - ENHANCED VERSION
+async function signInWorkspace(username, password){
+  // חיפוש ב-localStorage תחילה
   const store = readStore();
-  const found = Object.values(store).find(ws => ws.login?.username===username && ws.login?.password===password);
-  if(!found) return null;
+  let found = Object.values(store).find(ws => 
+    ws.login?.username === username && ws.login?.password === password
+  );
+  
+  // אם לא נמצא, נסה לחפש ב-IndexedDB
+  if (!found) {
+    const allWorkspaces = await getAllWorkspacesFromIndexedDB();
+    found = allWorkspaces.find(ws => 
+      ws.login?.username === username && ws.login?.password === password
+    );
+    
+    // אם נמצא ב-IndexedDB, העבר ל-localStorage
+    if (found) {
+      store[found.id] = found;
+      writeStore(store);
+      toast('Workspace restored from backup');
+    }
+  }
+  
+  if (!found) return null;
 
   // hydrate
   hydrateFrom(found);
@@ -90,6 +214,63 @@ function hydrateFrom(ws){
   state.office = { posX:0, posY:0, speed:3, keys:{}, loopId:null, keydownHandler:null, keyupHandler:null, nearTeam:null };
   state.ui = { beltPaused:false };
   state.workspace = { id: ws.id, type: ws.type, login: ws.login };
+}
+
+// ייצוא נתונים לקובץ
+function exportWorkspaceData() {
+  const store = readStore();
+  const exportData = {
+    version: '1.0',
+    exportDate: new Date().toISOString(),
+    workspaces: store
+  };
+  
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
+    type: 'application/json' 
+  });
+  
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `questboard-backup-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  toast('Workspace data exported successfully');
+}
+
+// ייבוא נתונים מקובץ
+function importWorkspaceData(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const importData = JSON.parse(e.target.result);
+      
+      if (importData.version && importData.workspaces) {
+        const currentStore = readStore();
+        
+        // מיזוג עם נתונים קיימים
+        Object.keys(importData.workspaces).forEach(wsId => {
+          currentStore[wsId] = importData.workspaces[wsId];
+        });
+        
+        writeStore(currentStore);
+        toast('Workspace data imported successfully');
+        
+        // רענון הממשק
+        if (typeof renderWorkspacesList === 'function') {
+          renderWorkspacesList();
+        }
+      } else {
+        toast('Invalid backup file format');
+      }
+    } catch (error) {
+      toast('Error importing data: ' + error.message);
+    }
+  };
+  reader.readAsText(file);
 }
 
 /** DOM helpers **/
@@ -169,7 +350,6 @@ window.AddyAuth = window.AddyAuth || (function(){
     return true;
   }
 
-
   return {
     listWorkspaces, saveWorkspaces,
     findWorkspaceByUsername, updateWorkspacePassword,
@@ -178,7 +358,6 @@ window.AddyAuth = window.AddyAuth || (function(){
     findUserByUsername, updateUserPasswordById
   };
 })();
-
 
 /* ===========================
    Setup Wizard (with auth flow)
@@ -222,8 +401,8 @@ function nextStep(){
     showWorkspaceAuthModal('business', ({username,password})=>{
       createWorkspace('business', username, password);
       saveCurrentWorkspace(); // נשמר כ־Workspace ריק עם ה־setup וה־teams
-      // אפשר להיכנס לאזור (ללא עובד מחובר) – כפתורי יצירת/התחברות עובד זמינים.
-      renderPlatformForUser(); // יסתדר גם אם currentUserId=null
+      // אפשר להיכנס לאזור (ללא עובד מחובר) — כפתורי יצירת/התחברות עובד זמינים.
+      renderPlatformForUser(); // יסתדר בן אן currentUserId=null
       showScreen('platform');
       toast('Business workspace created. You can now create or sign in as an employee.');
       // ensure a recovery code exists on this workspace and show it once
@@ -308,7 +487,7 @@ function prepareAvatarScreen(isPersonalCreation=false){
   if(group) group.style.display = isBiz ? 'block':'none';
   if(isBiz && select) select.innerHTML = `<option value="">Select your team</option>` + state.setup.teams.map(t=>`<option value="${t}">${t}</option>`).join('');
 
-  // אם הגענו לפה ממודל עסקי דרך האשף — אל תאפשר יצירת אווטאר (נחזור לפלטפורמה)
+  // אן הגענו לפה ממודל עסקי דרך האשף — אל תאפשר יצירת אווטאר (נחזור לפלטפורמה)
   if(isBiz && !isPersonalCreation && !state.workspace.id){
     // ביטחון כפול: לא מציגים את מסך האווטאר ביצירת Workspace עסקי
     renderPlatformForUser();
@@ -408,7 +587,7 @@ function ensureTeamExists(name){
    Platform (Office)
    =========================== */
 function renderPlatformForUser(){
-  const u=getCurrentUser(); // יכול להיות null במודל עסקי אם עוד לא בוצעה התחברות עובד
+  const u=getCurrentUser(); // יכול להיות null במודל עסקי אן עוד לא בוצעה התחברות עובד
   const navUserAvatar = byId('navUserAvatar');
   const navUserName = byId('navUserName');
   const navUserRole = byId('navUserRole');
@@ -432,7 +611,7 @@ function renderPlatformForUser(){
   const createNewAvatarBtn = byId('createNewAvatarBtn');
   const employeeSignInBtn = byId('employeeSignInBtn');
 
-  // במודל אישי – אין כפתור יצירת אווטאר נוסף ואין התחברות עובד
+  // במודל אישי — אין כפתור יצירת אווטאר נוסף ואין התחברות עובד
   if(state.workspace.type==='personal'){
     if(createNewAvatarBtn) createNewAvatarBtn.style.display='none';
     if(employeeSignInBtn) employeeSignInBtn.style.display='none';
@@ -532,12 +711,11 @@ function renderSidebar(){
   refresh();
 }
 
-
 function isLead(avatar){
   const team = avatar.team && state.teams[avatar.team];
   const byIdLead = team && team.leadId === avatar.id;
   const role = (avatar.role||'').toLowerCase();
-  const isByRole = /lead|manager|head|team\s*lead|boss|מנהל|מנהלת|ראש\s*צוות/.test(role);
+  const isByRole = /lead|manager|head|team\s*lead|boss/i.test(role);
   return !!(byIdLead || isByRole);
 }
 function openEmployeeProfile(id){
@@ -584,7 +762,7 @@ function startOfficeControls(){
 
   function pos(){ ch.style.left=state.office.posX+'px'; ch.style.top=state.office.posY+'px'; }
   function near(){
-    const rooms=$$('.team-room'); const cr=ch.getBoundingClientRect(); const mr=map.getBoundingClientRect();
+    const rooms=$('.team-room'); const cr=ch.getBoundingClientRect(); const mr=map.getBoundingClientRect();
     const cc={x:cr.left-mr.left+cr.width/2,y:cr.top-mr.top+cr.height/2}; let best=null,dist=Infinity;
     rooms.forEach(rm=>{
       const rr=rm.getBoundingClientRect();
@@ -602,7 +780,7 @@ function stopOfficeControls(){
   if(state.office.loopId){ cancelAnimationFrame(state.office.loopId); state.office.loopId=null; }
   if(state.office.keydownHandler){ document.removeEventListener('keydown',state.office.keydownHandler); state.office.keydownHandler=null; }
   if(state.office.keyupHandler){ document.removeEventListener('keyup',state.office.keyupHandler); state.office.keyupHandler=null; }
-  $$('.team-room .room-enter').forEach(e=>e.style.opacity='0');
+  $('.team-room .room-enter').forEach(e=>e.style.opacity='0');
 }
 function norm(k){
   if(!k) return null;
@@ -726,8 +904,6 @@ function renderBacklogBelt(team){
 
   viewport.setAttribute('data-paused', String(state.ui.beltPaused));
 }
-
-
 
 function renderTaskCard(task, team, mini=false, isClone=false){
   const card=document.createElement('div');
@@ -862,7 +1038,7 @@ function enableDnD(teamName){
     };
   });
 
-$$('.task-card').forEach(card=>{
+$('.task-card').forEach(card=>{
   const isClone = card.getAttribute('data-clone')==='1';
   if(!isClone) {
     card.ondragstart=(ev)=>{ ev.dataTransfer?.setData('text/task-id', card.dataset.taskId); setTimeout(()=>card.classList.add('dragging'),0); };
@@ -1123,7 +1299,7 @@ function showTaskDetailsModal(task, team){
 
 /** ===== Auth Modals ===== */
 
-// יצירת אישורי Workspace (גם personal וגם business)
+// יצירת אישורי Workspace (בן personal ובן business)
 function showWorkspaceAuthModal(type, onOk){
   const modal=buildModal('Create Workspace Login',(body,close)=>{
     body.innerHTML=`
@@ -1198,11 +1374,11 @@ function showGlobalSignInModal(){
       byId('siCancel').onclick=close;
 
       // Submit sign-in
-      byId('globalSignInForm').onsubmit=(e)=>{
+      byId('globalSignInForm').onsubmit=async (e)=>{
         e.preventDefault();
         const u=byId('siWsUser').value.trim();
-        const p=byId('siWsPass').value;         // <-- this now exists again
-        const ws = signInWorkspace(u,p);
+        const p=byId('siWsPass').value;
+        const ws = await signInWorkspace(u,p);
         if(!ws){ toast('Workspace not found or wrong password'); return; }
 
         if(ws.type==='personal'){
@@ -1241,7 +1417,6 @@ saveActiveSession({
   });
   document.body.appendChild(modal);
 }
-
 
 // התחברות עובד (במודל עסקי) לפי שם משתמש/סיסמה שהוגדרו בזמן יצירת האווטאר
 function showEmployeeSignInModal(){
@@ -1329,24 +1504,18 @@ function toast(msg){
     zIndex:'2000'
   });
   
-  function signOut(){
-  clearActiveSession?.();          // if you added the session helpers
-  state.currentUserId = null;      // forget the active user
-  showScreen('setup');             // go back to the start screen
-}
-
   document.body.appendChild(n);
   setTimeout(()=>n.remove(),1600);
 }
+
 function signOut(){
   try { clearActiveSession?.(); } catch(e) {}
   state.currentUserId = null;
-  showScreen('setup');      // or show the Sign-In modal if you prefer
+  showScreen('setup');
 }
 
-
 /* ===========================
-   Wire up
+   Column Add Task Functions
    =========================== */
 window.previousStep=previousStep;
 window.nextStep=nextStep;
@@ -1354,7 +1523,6 @@ window.selectOption=selectOption;
 window.focusTagInput=focusTagInput;
 window.handleTeamInput=handleTeamInput;
 window.handleCategoryInput=handleCategoryInput;
-
 
 window.showAddTaskToColumnModal=function(targetStatus){ showAddTaskModal(state.currentTeam, targetStatus); };
 
@@ -1439,6 +1607,23 @@ function showAddTaskToColumnModal(targetStatus){
           const chosenAssignee = !isPersonal ? (byId('taskAssignee')?.value || null) : state.currentUserId;
           const roleText = !isPersonal ? (byId('taskAssigneeRole')?.value.trim() || null) : null;
 
+          const task={
+            id:'tsk_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+            title,
+            description:byId('taskDescription')?.value.trim() || '',
+            priority:byId('taskPriority')?.value || 'medium',
+            points:Number(byId('taskPoints')?.value)||0,
+            due: byId('taskDue')?.value || null,
+            assigneeId: chosenAssignee,
+            assigneeRole: roleText,
+            status: targetStatus
+          };
+
+          team.tasks.push(task);
+          saveCurrentWorkspace();
+          close();
+          renderBoard(teamName);
+          enableDnD(teamName);
         };
       }
     }, 0);
@@ -1456,12 +1641,114 @@ function getColumnDisplayName(status){
   }
 }
 
+/* ===========================
+   Enhanced Data Management Functions
+   =========================== */
 
+// הוספת כפתורי ייצא/ייבא לממשק
+function addDataManagementButtons() {
+  const setupTopbar = document.querySelector('.setup-topbar');
+  if (setupTopbar && !setupTopbar.querySelector('.export-btn')) {
+    // כפתור ייצוא
+    const exportBtn = document.createElement('button');
+    exportBtn.className = 'btn btn-secondary btn-sm export-btn';
+    exportBtn.textContent = 'Export Data';
+    exportBtn.onclick = exportWorkspaceData;
+    
+    // כפתור ייבוא
+    const importBtn = document.createElement('button');
+    importBtn.className = 'btn btn-secondary btn-sm import-btn';
+    importBtn.textContent = 'Import Data';
+    
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    fileInput.style.display = 'none';
+    fileInput.onchange = function(e) {
+      if (e.target.files[0]) {
+        importWorkspaceData(e.target.files[0]);
+      }
+    };
+    
+    importBtn.onclick = () => fileInput.click();
+    
+    setupTopbar.insertBefore(exportBtn, setupTopbar.firstChild);
+    setupTopbar.insertBefore(importBtn, setupTopbar.firstChild);
+    setupTopbar.insertBefore(fileInput, setupTopbar.firstChild);
+  }
+}
+
+// הוספת מידע על המכשיר הנוכחי בממשק
+function showDeviceInfo() {
+  const deviceInfo = document.createElement('div');
+  deviceInfo.className = 'device-info';
+  deviceInfo.style.cssText = `
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    z-index: 1000;
+  `;
+  
+  const fingerprint = getDeviceFingerprint().slice(-8);
+  deviceInfo.textContent = `Device: ${fingerprint}`;
+  document.body.appendChild(deviceInfo);
+  
+  // הסתר אחרי 5 שניות
+  setTimeout(() => {
+    if (deviceInfo.parentNode) {
+      deviceInfo.parentNode.removeChild(deviceInfo);
+    }
+  }, 5000);
+}
+
+// הוספת הנחיות למשתמש
+function showDataSharingInstructions() {
+  const modal = buildModal('Share Data Between Devices', (body, close) => {
+    body.innerHTML = `
+      <div class="modal-form">
+        <h4>How to access your workspace from another device:</h4>
+        <ol style="margin: 12px 0; padding-left: 20px;">
+          <li>Click "Export Data" to download your workspace backup</li>
+          <li>Transfer the file to your other device</li>
+          <li>On the other device, click "Import Data" and select the file</li>
+          <li>Sign in with your workspace credentials</li>
+        </ol>
+        <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 12px; margin: 12px 0;">
+          <strong>Note:</strong> This is a temporary solution. For automatic sync across devices, a server-based solution is needed.
+        </div>
+        <div class="modal-buttons">
+          <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+          <button class="btn btn-primary" onclick="exportWorkspaceData(); closeModal();">Export Now</button>
+        </div>
+      </div>
+    `;
+    
+    window.closeModal = close;
+  });
+  document.body.appendChild(modal);
+}
+
+// הוספת הסבר בממשק הראשי
+function addSharingInfo() {
+  const authHint = document.querySelector('.auth-hint');
+  if (authHint && !authHint.querySelector('.sharing-link')) {
+    authHint.innerHTML += `<br><small style="color: #6b7280;" class="sharing-link">
+      Need to access from another device? 
+      <a href="#" onclick="showDataSharingInstructions()" style="color: #4F46E5;">Click here</a>
+    </small>`;
+  }
+}
+
+/* ===========================
+   Main Initialization
+   =========================== */
 document.addEventListener('DOMContentLoaded', ()=>{
-  // כפתור Sign In הראשי מהעמוד הראשון
-  const globalBtn = byId('globalSignInBtn');
-  if(globalBtn) globalBtn.onclick = showGlobalSignInModal;
-  document.addEventListener('DOMContentLoaded', ()=>{
+  // כפתור Sign In הראשי מהעמוד הראשוני
   const globalBtn = byId('globalSignInBtn');
   if(globalBtn) globalBtn.onclick = showGlobalSignInModal;
 
@@ -1482,13 +1769,16 @@ document.addEventListener('DOMContentLoaded', ()=>{
       return; // stop: we restored the session
     }
   }
+  
+  // Initialize enhanced features
+  addDataManagementButtons();
+  showDeviceInfo();
+  setTimeout(addSharingInfo, 1000);
+  
   // no session -> normal flow
   gotoStep(0);
 });
 
-
-  gotoStep(0);
-});
 // ---------- Forgot Password flow wiring ----------
 (function initForgotPasswordFlow(){
   const dlgVerify = document.getElementById('dialog-extra-verify');
@@ -1504,10 +1794,10 @@ const openTop = (el) => { document.body.appendChild(el); }; // move to end of <b
 evUser.value = '';
 evExtra.value = '';
 
-// If you're calling from the Sign-in modal, it’s already closing;
+// If you're calling from the Sign-in modal, it's already closing;
 // moving the dialog after <body> ensures DOM order is last = top
 openTop(dlgVerify);
-openTop(dlgReset);  // also move the reset dialog once so it’s above later
+openTop(dlgReset);  // also move the reset dialog once so it's above later
 openModal(dlgVerify, '#ev-username');
 
     }
@@ -1568,54 +1858,56 @@ openModal(dlgVerify, '#ev-username');
   // State passed from verify -> reset (memory only)
   let _verifiedUserId = null;
 
- 
-
   // Cancel verify
-  evCancel.addEventListener('click', () => closeModal(dlgVerify));
+  if(evCancel) evCancel.addEventListener('click', () => closeModal(dlgVerify));
 
   // Submit verify (neutral feedback—no enumeration)
-  evSubmit.addEventListener('click', () => {
-  const username = evUser.value.trim();
-  const extra    = evExtra.value.trim();
-  _verifiedUserId = null;
+  if(evSubmit) {
+    evSubmit.addEventListener('click', () => {
+    const username = evUser?.value.trim() || '';
+    const extra    = evExtra?.value.trim() || '';
+    _verifiedUserId = null;
 
-  // Look up user in your QB (localStorage) workspace store
-  const user = (typeof window.AddyAuth?.findUserByUsername === 'function')
-    ? window.AddyAuth.findUserByUsername(username)
-    : null;
+    // Look up user in your QB (localStorage) workspace store
+    const user = (typeof window.AddyAuth?.findUserByUsername === 'function')
+      ? window.AddyAuth.findUserByUsername(username)
+      : null;
 
-  // Match against recovery code (additional identifier)
-  const ok = !!(user && (user.additionalIdentifier || '').trim().toLowerCase() === extra.toLowerCase());
-  if (ok) {
-    _verifiedUserId = user.id || user.username;
-    closeModal(dlgVerify);
+    // Match against recovery code (additional identifier)
+    const ok = !!(user && (user.additionalIdentifier || '').trim().toLowerCase() === extra.toLowerCase());
+    if (ok) {
+      _verifiedUserId = user.id || user.username;
+      closeModal(dlgVerify);
 
-    // prepare reset dialog
-    rpNew.value = '';
-    rpConfirm.value = '';
-    rpSubmit.disabled = true;
-    updateStrengthUI();
+      // prepare reset dialog
+      if(rpNew) rpNew.value = '';
+      if(rpConfirm) rpConfirm.value = '';
+      if(rpSubmit) rpSubmit.disabled = true;
+      updateStrengthUI();
 
-    openModal(dlgReset, '#rp-new');   // <-- now you’ll see the Reset Password dialog
-  } else {
-    // Neutral failure UX (no enumeration): keep dialog open, subtle cue, clear code input
-    const card = dlgVerify.querySelector('.modal-card');
-    const err  = document.getElementById('ev-error');
-    if (card) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
-    if (err)  { err.textContent = 'If details match, we’ll proceed to reset.'; } // neutral text (see OWASP/Stytch)
-    evExtra.value = '';
-    evExtra.focus();
+      openModal(dlgReset, '#rp-new');   // <-- now you'll see the Reset Password dialog
+    } else {
+      // Neutral failure UX (no enumeration): keep dialog open, subtle cue, clear code input
+      const card = dlgVerify.querySelector('.modal-card');
+      const err  = document.getElementById('ev-error');
+      if (card) { card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); }
+      if (err)  { err.textContent = 'If details match, we will proceed to reset.'; } // neutral text (see OWASP/Stytch)
+      if(evExtra) evExtra.value = '';
+      if(evExtra) evExtra.focus();
+    }
+  });
   }
-});
-
 
   // Reset dialog behavior
-  rpCancel.addEventListener('click', () => { _verifiedUserId = null; closeModal(dlgReset); });
+  if(rpCancel) rpCancel.addEventListener('click', () => { _verifiedUserId = null; closeModal(dlgReset); });
 
-  rpShow.addEventListener('change', () => {
-    const type = rpShow.checked ? 'text' : 'password';
-    rpNew.type = type; rpConfirm.type = type;
-  });
+  if(rpShow) {
+    rpShow.addEventListener('change', () => {
+      const type = rpShow.checked ? 'text' : 'password';
+      if(rpNew) rpNew.type = type; 
+      if(rpConfirm) rpConfirm.type = type;
+    });
+  }
 
   function isCommonPassword(pw){
     const trivial = ['password','123456','qwerty','letmein','admin','iloveyou','welcome'];
@@ -1627,29 +1919,33 @@ openModal(dlgVerify, '#ev-username');
     return { okLen, notCommon, all: okLen && notCommon };
   }
   function updateStrengthUI(){
-    const pw = rpNew.value;
+    const pw = rpNew?.value || '';
     const m  = meetsPolicy(pw);
-    rpReqs.querySelector('[data-req="len"]').className    = m.okLen ? 'ok' : 'bad';
-    rpReqs.querySelector('[data-req="common"]').className = m.notCommon ? 'ok' : 'bad';
-    const matches = pw.length > 0 && pw === rpConfirm.value;
-    rpSubmit.disabled = !(m.all && matches);
+    const lenReq = rpReqs?.querySelector('[data-req="len"]');
+    const commonReq = rpReqs?.querySelector('[data-req="common"]');
+    if(lenReq) lenReq.className = m.okLen ? 'ok' : 'bad';
+    if(commonReq) commonReq.className = m.notCommon ? 'ok' : 'bad';
+    const matches = pw.length > 0 && pw === (rpConfirm?.value || '');
+    if(rpSubmit) rpSubmit.disabled = !(m.all && matches);
   }
-  rpNew.addEventListener('input', updateStrengthUI);
-  rpConfirm.addEventListener('input', updateStrengthUI);
+  if(rpNew) rpNew.addEventListener('input', updateStrengthUI);
+  if(rpConfirm) rpConfirm.addEventListener('input', updateStrengthUI);
 
-  rpSubmit.addEventListener('click', () => {
-    if(!_verifiedUserId) return;
-    const pw = rpNew.value, conf = rpConfirm.value;
-    const m = meetsPolicy(pw);
-    if(!(m.all && pw === conf)) return;
+  if(rpSubmit) {
+    rpSubmit.addEventListener('click', () => {
+      if(!_verifiedUserId) return;
+      const pw = rpNew?.value || '';
+      const conf = rpConfirm?.value || '';
+      const m = meetsPolicy(pw);
+      if(!(m.all && pw === conf)) return;
 
-    const ok = (typeof window.AddyAuth?.updateUserPasswordById === 'function')
-      ? window.AddyAuth.updateUserPasswordById(_verifiedUserId, pw)
-      : false;
+      const ok = (typeof window.AddyAuth?.updateUserPasswordById === 'function')
+        ? window.AddyAuth.updateUserPasswordById(_verifiedUserId, pw)
+        : false;
 
-    _verifiedUserId = null;
-    closeModal(dlgReset);
-    // Optional: toast(ok ? 'Password updated. You can now sign in.' : 'Password updated in session.');
-  });
+      _verifiedUserId = null;
+      closeModal(dlgReset);
+      toast(ok ? 'Password updated. You can now sign in.' : 'Password updated in session.');
+    });
+  }
 })();
-
