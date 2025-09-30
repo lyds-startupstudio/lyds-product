@@ -21,6 +21,137 @@ const state = {
   workspace: { id:null, type:null, login:null } // login:{username,password}
 };
 
+// ---- Default workspace + apply helper ----
+function buildEmptyWorkspace() {
+  return {
+    setup: { userType: null, businessType: null, personalPurpose: null, teams: [], categories: [] },
+    avatars: [],
+    teams: {}
+  };
+}
+
+function applyWorkspaceData(data) {
+  const d = data || buildEmptyWorkspace();
+  state.setup   = JSON.parse(JSON.stringify(d.setup   || { userType:null, businessType:null, personalPurpose:null, teams:[], categories:[] }));
+  state.avatars = JSON.parse(JSON.stringify(d.avatars || []));
+  state.teams   = JSON.parse(JSON.stringify(d.teams   || {}));
+  state.currentUserId = null;
+}
+
+/* ===== Supabase wiring ===== */
+const SUPA_ON = !!(window.SUPABASE_URL && window.SUPABASE_ANON && window.supabase);
+
+// יצירת client אחד בלבד
+function getSupabaseClient() {
+  if (!window._supaClient) {
+    window._supaClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON);
+  }
+  return window._supaClient;
+}
+
+let currentWorkspaceName = "default";
+
+// Optional cache for offline / faster load - לפני השימוש בהן!
+const CLOUD_CACHE = "QB_workspace_cache_v1";
+const cacheSet = d => { try{ localStorage.setItem(CLOUD_CACHE, JSON.stringify(d)); }catch{} };
+const cacheGet = () => { try{ return JSON.parse(localStorage.getItem(CLOUD_CACHE)||"null"); }catch{ return null } };
+
+// Auth helpers - כולם משתמשים באותו client
+async function cloudSignUp(email, password){
+  if(!SUPA_ON) throw new Error("Supabase disabled");
+  const { data, error } = await getSupabaseClient().auth.signUp({ email, password });
+  if(error) throw error; 
+  return data.user;
+}
+
+async function cloudSignIn(email, password){
+  console.log('1. cloudSignIn START');
+  if(!SUPA_ON) throw new Error("Supabase disabled");
+  
+  console.log('2. Calling getSupabaseClient...');
+  const client = getSupabaseClient();
+  console.log('3. Client ready, calling signInWithPassword...');
+  
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  
+  console.log('4. Response received:', { data, error });
+  
+  if(error) {
+    console.error('5. ERROR:', error);
+    throw error;
+  }
+  
+  console.log('6. SUCCESS, returning user:', data.user);
+  return data.user;
+}
+
+async function cloudSignOut(){
+  if(!SUPA_ON) return;
+  await getSupabaseClient().auth.signOut();
+}
+
+async function currentUser(){
+  if(!SUPA_ON) return null;
+  return (await getSupabaseClient().auth.getUser()).data.user;
+}
+
+async function loadWorkspaceFromCloud(name="default"){
+  const user = await currentUser(); 
+  if(!user) return null;
+  const { data, error } = await getSupabaseClient()
+    .from("workspaces")
+    .select("id,name,data,updated_at")
+    .eq("user_id", user.id)
+    .eq("name", name)
+    .maybeSingle();
+  if(error) throw error;
+
+  if(data){
+    applyWorkspaceData(data.data);
+    cacheSet(data.data);
+    return data.data;
+  }else{
+    const empty = buildEmptyWorkspace();
+    await saveWorkspaceToCloud(empty, name);
+    applyWorkspaceData(empty);
+    cacheSet(empty);
+    return empty;
+  }
+}
+
+async function saveWorkspaceToCloud(appState, name="default"){
+  const user = await currentUser(); 
+  if(!user) throw new Error("Not authenticated");
+  const payload = { user_id: user.id, name, data: appState, updated_at: new Date().toISOString() };
+  const { error } = await getSupabaseClient().from("workspaces").upsert(payload, { onConflict: "user_id,name" });
+  if(error) throw error; 
+  cacheSet(appState);
+}
+
+// Connect Sign In/Out buttons if they exist in the HTML
+document.addEventListener("DOMContentLoaded", ()=>{
+  const btnIn  = document.getElementById("globalSignInBtn");
+  const btnOut = document.getElementById("signOutBtn");
+  if(btnIn){
+    btnIn.onclick = async ()=>{
+      const email = prompt("Email:");
+      const pass  = prompt("Password:");
+      if(!email || !pass) return;
+      try{
+        await cloudSignIn(email.trim(), pass);
+        const cached = cacheGet(); if(cached) applyWorkspaceData(cached);
+        await loadWorkspaceFromCloud(currentWorkspaceName);
+        alert("Signed in. Workspace loaded from cloud.");
+      }catch(e){ alert("Sign-in failed: " + (e?.message||e)); }
+    };
+  }
+  if(btnOut){
+    btnOut.onclick = async ()=>{ try{ await cloudSignOut(); alert("Signed out."); }catch(e){ console.warn(e); } };
+  }
+});
+/* ===== end Supabase wiring ===== */
+
+
 /** ==== Persistence (localStorage) ==== **/
 const LS_KEY = 'QB_workspaces_v1'; // map: id -> { id,type,login:{u,p}, data:<serializedState> }
 const LS_ACTIVE = 'QB_active_session_v1';
@@ -98,10 +229,14 @@ const $$ = (s)=>Array.from(document.querySelectorAll(s));
 const byId=(id)=>document.getElementById(id);
 
 /** Screens **/
-const screens={ setup:byId('setupScreen'), avatar:byId('avatarScreen'), platform:byId('platformScreen'), team:byId('teamScreen') };
+const screens={ signup: byId('signupScreen'), setup:byId('setupScreen'), avatar:byId('avatarScreen'), platform:byId('platformScreen'), team:byId('teamScreen') };
 function showScreen(k){
   $$('.screen').forEach(s=>s.classList.remove('active'));
-  if (screens[k]) screens[k].classList.add('active');
+  if (screens[k]) {
+    screens[k].classList.add('active');
+  } else {
+    console.error('Screen not found:', k);
+  }
 }
 
 // ===== AddyAuth adapter (workspace accounts) =====
@@ -215,32 +350,20 @@ function nextStep(){
 
   if(!isLast){ gotoStep(currentStepIndex+1); return; }
 
-  // הגענו לסוף האשף:
-  if(state.setup.userType==='business'){
-    // במודל עסקי: אין יצירת אווטאר בשלב זה.
-    // מבקשים להגדיר משתמש/סיסמה לאזור (workspace) ושומרים.
-    showWorkspaceAuthModal('business', ({username,password})=>{
-      createWorkspace('business', username, password);
-      saveCurrentWorkspace(); // נשמר כ־Workspace ריק עם ה־setup וה־teams
-      // אפשר להיכנס לאזור (ללא עובד מחובר) – כפתורי יצירת/התחברות עובד זמינים.
-      renderPlatformForUser(); // יסתדר גם אם currentUserId=null
-      showScreen('platform');
-      toast('Business workspace created. You can now create or sign in as an employee.');
-      // ensure a recovery code exists on this workspace and show it once
-const store = readStore();
-const wsObj = store[state.workspace.id];
-if (wsObj) {
-  wsObj.login = wsObj.login || {};
-  if (!wsObj.login.recoveryCode) {
-    // reuse the generator from AddyAuth adapter
-    wsObj.login.recoveryCode = window.AddyAuth.generateRecoveryCode();
-    writeStore(store);
-  }
-  alert('Save this recovery code (your additional identifier): ' + wsObj.login.recoveryCode);
+  // נגמר סוף האשף:
+  if (state.setup.userType === 'business') {
+  (async () => {
+    const user = await currentUser();
+
+    createWorkspace('business', null, null);
+    try { await saveCurrentWorkspace(); } catch (e) { console.warn('Cloud save failed:', e); }
+
+    renderPlatformForUser();
+    showScreen('platform');
+    toast('Business workspace created.');
+  })();
+  return;
 }
-    });
-    return;
-  }
 
   // במודל אישי: נשמור את האישורים בסוף יצירת האווטאר (כדי שה־workspace יכלול את האווטאר)
   prepareAvatarScreen(true /*isPersonalCreation*/);
@@ -310,7 +433,6 @@ function prepareAvatarScreen(isPersonalCreation=false){
 
   // אם הגענו לפה ממודל עסקי דרך האשף — אל תאפשר יצירת אווטאר (נחזור לפלטפורמה)
   if(isBiz && !isPersonalCreation && !state.workspace.id){
-    // ביטחון כפול: לא מציגים את מסך האווטאר ביצירת Workspace עסקי
     renderPlatformForUser();
     showScreen('platform');
     return;
@@ -372,30 +494,28 @@ if(form){
 
       // Personal-first-creation: אחרי יצירת האווטאר מבקשים שם משתמש/סיסמה ל-workspace,
       // ושומרים הכול כך שבפעם הבאה נכנסים דרך Sign In (בלי להקים מחדש).
+      // Personal-first-creation: אם אין חשבון מחובר, נבקש Email+Password (Supabase)
       if(!isBiz && !state.workspace.id){
-        showWorkspaceAuthModal('personal', ({username,password})=>{
-          createWorkspace('personal', username, password);
+        (async ()=>{
+          const user = await currentUser();
+          if(!user){
+            const confirmMsg = 'To save your workspace to the cloud, please sign in first.\n\nClick OK to sign in, or Cancel to continue without cloud sync.';
+            if(confirm(confirmMsg)){
+              showGlobalSignInModal();
+              toast('After signing in, create your avatar again to save to cloud.');
+            }
+          return;
+          }
+    
+          createWorkspace('personal', null, null);
           saveCurrentWorkspace();
-          renderPlatformForUser(); showScreen('platform'); form.reset();
-          toast('Personal workspace created and saved.');
-          // ensure a recovery code exists on this workspace and show it once
-const store = readStore();
-const wsObj = store[state.workspace.id];
-if (wsObj) {
-  wsObj.login = wsObj.login || {};
-  if (!wsObj.login.recoveryCode) {
-    // reuse the generator from AddyAuth adapter
-    wsObj.login.recoveryCode = window.AddyAuth.generateRecoveryCode();
-    writeStore(store);
-  }
-  alert('Save this recovery code (your additional identifier): ' + wsObj.login.recoveryCode);
-}
-        });
+          renderPlatformForUser(); 
+          showScreen('platform'); 
+          form.reset();
+          toast('Personal workspace created and saved to cloud.');
+        })();
         return;
       }
-
-      saveCurrentWorkspace();
-      renderPlatformForUser(); showScreen('platform'); form.reset();
     };
   }
 }
@@ -431,11 +551,13 @@ function renderPlatformForUser(){
 
   const createNewAvatarBtn = byId('createNewAvatarBtn');
   const employeeSignInBtn = byId('employeeSignInBtn');
+  const createTeamBtn = byId('createTeamBtn');
 
   // במודל אישי – אין כפתור יצירת אווטאר נוסף ואין התחברות עובד
   if(state.workspace.type==='personal'){
     if(createNewAvatarBtn) createNewAvatarBtn.style.display='none';
     if(employeeSignInBtn) employeeSignInBtn.style.display='none';
+    if(createTeamBtn) createTeamBtn.style.display='none';
   }else{
     if(createNewAvatarBtn){
       createNewAvatarBtn.style.display='inline-flex';
@@ -445,13 +567,18 @@ function renderPlatformForUser(){
       employeeSignInBtn.style.display='inline-flex';
       employeeSignInBtn.onclick=()=>showEmployeeSignInModal();
     }
+    if(createTeamBtn){
+      createTeamBtn.style.display='inline-flex';
+      createTeamBtn.onclick=()=>showCreateTeamModal();
+    }
   }
-const signOutBtn = byId('signOutBtn');
-if (signOutBtn) signOutBtn.onclick = signOut;
+  const signOutBtn = byId('signOutBtn');
+  if (signOutBtn) signOutBtn.onclick = signOut;
 
   startOfficeControls();
   
 }
+
 function getCurrentUser(){ return state.avatars.find(a=>a.id===state.currentUserId)||null; }
 function updateTeamPointsDisplay(){
   const u=getCurrentUser(); let t=0;
@@ -1123,127 +1250,199 @@ function showTaskDetailsModal(task, team){
 
 /** ===== Auth Modals ===== */
 
-// יצירת אישורי Workspace (גם personal וגם business)
-function showWorkspaceAuthModal(type, onOk){
-  const modal=buildModal('Create Workspace Login',(body,close)=>{
-    body.innerHTML=`
-      <form id="wsAuthForm" class="modal-form">
-        <div class="form-group">
-          <label>Workspace Username (${type})</label>
-          <input id="wsUsername" class="form-control" placeholder="Choose a username" required>
-        </div>
-        <div class="form-group">
-          <label>Workspace Password</label>
-          <input id="wsPassword" type="password" class="form-control" placeholder="Choose a password" required>
-        </div>
-        <div class="modal-buttons">
-          <button type="button" id="wsCancel" class="btn btn-secondary">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
-        </div>
-        <div class="small-hint">Note: Demo storage uses your browser only (localStorage).</div>
-      </form>`;
-    setTimeout(()=>{
-      byId('wsCancel').onclick=close;
-      byId('wsAuthForm').onsubmit=(e)=>{
-        e.preventDefault();
-        const username=byId('wsUsername').value.trim();
-        const password=byId('wsPassword').value;
-        if(!username||!password){ toast('Please fill username & password'); return; }
-
-        // basic uniqueness check
-        const exists = signInWorkspace(username, password);
-        if(exists){ toast('Workspace with same credentials already exists'); return; }
-
-        // restore pre-check (signInWorkspace mutated state), so reload wizard state:
-        hydrateFrom({ id:null, type:null, login:null, data:{ setup: state.setup, avatars: state.avatars, teams: state.teams } });
-
-        close();
-        onOk?.({username,password});
-      };
-    },0);
-  });
-  document.body.appendChild(modal);
-}
-
-// התחברות לאזור קיים מהעמוד הראשוני
+// Sign in with email/password (Supabase)
 function showGlobalSignInModal(){
-  const modal=buildModal('Sign In to Workspace',(body,close)=>{
-    body.innerHTML=`
+  const modal = buildModal('Sign In',(body,close)=>{
+    body.innerHTML = `
       <form id="globalSignInForm" class="modal-form">
         <div class="form-group">
-          <label>Workspace Username</label>
-          <input id="siWsUser" class="form-control" placeholder="Your workspace username">
+          <label>Email</label>
+          <input id="siEmail" type="email" class="form-control" placeholder="you@example.com" required>
         </div>
-
         <div class="form-group">
-          <label>Workspace Password</label>
-          <input id="siWsPass" type="password" class="form-control" placeholder="Your workspace password">
+          <label>Password</label>
+          <input id="siPass" type="password" class="form-control" placeholder="Your password" required>
         </div>
-
-        <div class="form-group">
-          <button id="btnForgotPwd" class="btn-link" type="button" aria-haspopup="dialog" aria-controls="dialog-extra-verify">
-            Forgot password?
-          </button>
-        </div>
-
         <div class="modal-buttons">
           <button type="button" id="siCancel" class="btn btn-secondary">Cancel</button>
-          <button type="submit" class="btn btn-primary">Sign In</button>
+          <button type="button" id="siSubmit" class="btn btn-primary">Sign In</button>
         </div>
-        <div class="small-hint">Personal = one user; Business = add or sign in employees.</div>
+        <div class="small-hint">
+          Don't have an account? <a href="#" id="linkToSetup">Start setup wizard</a><br>
+          <a href="#" id="btnForgotPwd">Forgot password?</a>
+        </div>
       </form>`;
-
+      
     setTimeout(()=>{
-      // Close modal
-      byId('siCancel').onclick=close;
+      const cancelBtn = byId('siCancel');
+      const submitBtn = byId('siSubmit');
+      const form = byId('globalSignInForm');
+      const linkSetup = byId('linkToSetup');
+      
+      if(cancelBtn) cancelBtn.onclick = close;
+      if(linkSetup) {
+        linkSetup.onclick = (e)=>{ 
+          e.preventDefault(); 
+          close(); 
+          showScreen('setup'); 
+          gotoStep(0); 
+        };
+      }
+      if(form) form.onsubmit = (e) => e.preventDefault();
 
-      // Submit sign-in
-      byId('globalSignInForm').onsubmit=(e)=>{
+      if(submitBtn) {
+        const newBtn = submitBtn.cloneNode(true);
+        submitBtn.parentNode.replaceChild(newBtn, submitBtn);
+        
+        newBtn.onclick = async () => {
+          const email = byId('siEmail')?.value.trim();
+          const pass  = byId('siPass')?.value;
+          
+          if (!email || !pass) {
+            alert('Please enter both email and password');
+            return;
+          }
+          
+          try{
+            const user = await cloudSignIn(email, pass);
+            const cached = cacheGet(); 
+            if (cached) applyWorkspaceData(cached);
+            
+            await loadWorkspaceFromCloud('default');
+            close();
+            renderPlatformForUser(); 
+            showScreen('platform');
+            toast('Signed in.');
+          }catch(err){
+            console.error('SIGN-IN ERROR:', err);
+            alert('Sign-in failed: ' + (err?.message || err));
+          }
+        };
+      }
+    },0);
+  });
+  document.body.appendChild(modal);
+}
+
+function showSignupModal(){
+  const modal = buildModal('Create Account to Save Workspace',(body,close)=>{
+    body.innerHTML = `
+      <div style="margin-bottom:16px;padding:12px;background:#f0f9ff;border-radius:8px;font-size:13px;">
+        💡 Create an account to save your workspace to the cloud and access it from any device
+      </div>
+      <form id="signupForm" class="modal-form">
+        <div class="form-group">
+          <label>Email</label>
+          <input id="suEmail" type="email" class="form-control" placeholder="you@example.com" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input id="suPass" type="password" class="form-control" placeholder="Choose a strong password (min 8 characters)" required>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" id="suCancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Account & Continue</button>
+        </div>
+        <div class="small-hint">
+          Already have an account? <a href="#" id="linkToSignIn">Sign in instead</a>
+        </div>
+      </form>`;
+    setTimeout(()=>{
+      byId('suCancel').onclick = close;
+      
+      const linkSignIn = byId('linkToSignIn');
+      if(linkSignIn) linkSignIn.onclick = (e)=>{ e.preventDefault(); close(); showGlobalSignInModal(); };
+      
+      byId('signupForm').onsubmit = async (e)=>{
         e.preventDefault();
-        const u=byId('siWsUser').value.trim();
-        const p=byId('siWsPass').value;         // <-- this now exists again
-        const ws = signInWorkspace(u,p);
-        if(!ws){ toast('Workspace not found or wrong password'); return; }
-
-        if(ws.type==='personal'){
-          const first = state.avatars[0];
-          state.currentUserId = first?.id || null;
-        } else {
-          state.currentUserId = null;
+        const email = byId('suEmail').value.trim();
+        const pass  = byId('suPass').value;
+        
+        if(!email || !pass) {
+          toast('Please fill all fields');
+          return;
         }
-        // after setting state.currentUserId and before renderPlatformForUser()
-saveActiveSession({
-  wsId: state.workspace.id,              // set by hydrateFrom(found)
-  type: state.workspace.type,            // 'personal' | 'business'
-  employeeId: state.currentUserId || null
-});
-
-        saveCurrentWorkspace();
-        renderPlatformForUser(); showScreen('platform');
-        close();
-        toast('Signed in.');
-      };
-
-      // Forgot password: close Sign-In first, then open Extra verification
-      const fp = byId('btnForgotPwd');
-      if (fp) fp.onclick = () => {
-        const typedUser = byId('siWsUser')?.value.trim() || '';
-        close(); // hide this modal to prevent overlap
-
-        // prefill username if user already typed it
-        const u = byId('ev-username');
-        if (u && typedUser) u.value = typedUser;
-
-        const dlg = document.getElementById('dialog-extra-verify');
-        openModal(dlg, '#ev-username');
+        
+        if(pass.length < 8){
+          toast('Password must be at least 8 characters');
+          return;
+        }
+        
+        try{
+          await cloudSignUp(email, pass);
+          await cloudSignIn(email, pass);
+          
+          // עכשיו ממשיכים עם יצירת workspace
+          createWorkspace(state.setup.userType, null, null);
+          await saveCurrentWorkspace();
+          await loadWorkspaceFromCloud('default');
+          
+          close();
+          
+          if(state.setup.userType === 'business'){
+            renderPlatformForUser();
+            showScreen('platform');
+            toast('Account created! You can now create employees and assign them to teams.');
+          } else {
+            prepareAvatarScreen(true);
+            showScreen('avatar');
+          }
+        }catch(err){
+          console.error('Sign-up error:', err);
+          if(err.message.includes('already registered')){
+            alert('This email is already registered. Please sign in instead.');
+            close();
+            showGlobalSignInModal();
+          } else {
+            alert('Sign-up failed: ' + (err?.message||err));
+          }
+        }
       };
     },0);
   });
   document.body.appendChild(modal);
 }
 
-
 // התחברות עובד (במודל עסקי) לפי שם משתמש/סיסמה שהוגדרו בזמן יצירת האווטאר
+
+function showCreateTeamModal(){
+  const modal = buildModal('Create New Team',(body,close)=>{
+    body.innerHTML = `
+      <form id="createTeamForm" class="modal-form">
+        <div class="form-group">
+          <label>Team Name</label>
+          <input id="newTeamName" class="form-control" placeholder="e.g., Engineering, Marketing" required />
+        </div>
+        <div class="modal-buttons">
+          <button type="button" id="cancelTeam" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Team</button>
+        </div>
+      </form>`;
+    
+    setTimeout(()=>{
+      byId('cancelTeam').onclick = close;
+      byId('createTeamForm').onsubmit = (e)=>{
+        e.preventDefault();
+        const teamName = byId('newTeamName')?.value.trim();
+        if(!teamName) return;
+        
+        if(state.setup.teams.includes(teamName)){
+          toast('Team already exists');
+          return;
+        }
+        
+        state.setup.teams.push(teamName);
+        ensureTeamExists(teamName);
+        saveCurrentWorkspace();
+        close();
+        renderPlatformForUser();
+        toast(`Team "${teamName}" created successfully`);
+      };
+    },0);
+  });
+  document.body.appendChild(modal);
+}
+
 function showEmployeeSignInModal(){
   const modal=buildModal('Employee Sign In',(body,close)=>{
     body.innerHTML=`
@@ -1329,21 +1528,25 @@ function toast(msg){
     zIndex:'2000'
   });
   
-  function signOut(){
-  clearActiveSession?.();          // if you added the session helpers
-  state.currentUserId = null;      // forget the active user
-  showScreen('setup');             // go back to the start screen
-}
-
   document.body.appendChild(n);
   setTimeout(()=>n.remove(),1600);
 }
-function signOut(){
-  try { clearActiveSession?.(); } catch(e) {}
-  state.currentUserId = null;
-  showScreen('setup');      // or show the Sign-In modal if you prefer
-}
 
+function signOut(){
+  try { 
+    clearActiveSession?.();
+    cloudSignOut();
+  } catch(e) { console.warn(e); }
+  
+  state.currentUserId = null;
+  state.workspace = { id:null, type:null, login:null };
+  state.avatars = [];
+  state.teams = {};
+  state.setup = { userType:null, businessType:null, personalPurpose:null, teams:[], categories:[] };
+  
+  showScreen('signup');
+  toast('Signed out successfully');
+}
 
 /* ===========================
    Wire up
@@ -1653,3 +1856,71 @@ openModal(dlgVerify, '#ev-username');
   });
 })();
 
+/* ===== Cloud save overlay (non-breaking) ===== */
+(function(){
+  if(typeof saveCurrentWorkspace !== "function") return;
+  const saveLocal = saveCurrentWorkspace;
+  window.saveCurrentWorkspace = async function(){
+    try{ saveLocal(); }catch(e){ console.warn("Local save error", e); }
+    if(SUPA_ON){
+      try{
+        await saveWorkspaceToCloud({ setup: state.setup, avatars: state.avatars, teams: state.teams }, currentWorkspaceName);
+      }catch(e){
+        console.warn("Cloud save failed:", e?.message||e);
+      }
+    }
+  };
+})();
+
+// Handle initial signup screen
+document.addEventListener('DOMContentLoaded', ()=>{
+  const signupScreen = byId('signupScreen');
+  const setupScreen = byId('setupScreen');
+  const haveAccountBtn = byId('haveAccountBtn');
+  const initialSignupForm = byId('initialSignupForm');
+  
+  // כפתור "Already have account"
+  if(haveAccountBtn){
+    haveAccountBtn.onclick = ()=>{
+      showGlobalSignInModal();
+    };
+  }
+  
+  // טופס יצירת החשבון
+  if(initialSignupForm){
+    initialSignupForm.onsubmit = async (e)=>{
+      e.preventDefault();
+      const email = byId('signupEmail')?.value.trim();
+      const pass = byId('signupPassword')?.value;
+      
+      if(!email || !pass){
+        toast('Please fill all fields');
+        return;
+      }
+      
+      if(pass.length < 8){
+        toast('Password must be at least 8 characters');
+        return;
+      }
+      
+      try{
+        await cloudSignUp(email, pass);
+        await cloudSignIn(email, pass);
+        
+        // עכשיו עוברים לאשף ההגדרה
+        if(signupScreen) signupScreen.classList.remove('active');
+        if(setupScreen) setupScreen.classList.add('active');
+        gotoStep(0);
+        toast('Account created! Now set up your workspace.');
+      }catch(err){
+        console.error('Sign-up error:', err);
+        if(err.message.includes('already registered')){
+          alert('This email is already registered. Please sign in instead.');
+          showGlobalSignInModal();
+        } else {
+          alert('Sign-up failed: ' + (err?.message||err));
+        }
+      }
+    };
+  }
+});

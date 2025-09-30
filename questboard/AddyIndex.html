@@ -7,6 +7,41 @@
   <link rel="stylesheet" href="AddyStyle.css"/>
 </head>
 <body>
+  <!-- Sign Up Screen - FIRST SCREEN -->
+<div id="signupScreen" class="screen active">
+  <div class="setup-container">
+    <div class="setup-header">
+      <div class="setup-topbar">
+        <button id="haveAccountBtn" class="btn btn-secondary btn-auth">Already have an account? Sign In</button>
+      </div>
+      <div class="setup-logo">QuestBoard</div>
+      <h1 class="setup-title">Create Your Account</h1>
+      <p class="setup-subtitle">Get started with QuestBoard</p>
+    </div>
+
+    <div class="setup-content" style="justify-content:center;">
+      <div style="max-width:400px;width:100%;margin:0 auto;">
+        <div style="margin-bottom:16px;padding:12px;background:#f0f9ff;border-radius:8px;font-size:13px;">
+          💡 Create your account to start using QuestBoard
+        </div>
+        
+        <form id="initialSignupForm">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input id="signupEmail" type="email" class="form-control" placeholder="you@example.com" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input id="signupPassword" type="password" class="form-control" placeholder="Choose a strong password (min 8 characters)" required>
+          </div>
+          
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;">Create Account & Continue</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
   <!-- Setup Screen -->
   <div id="setupScreen" class="screen active">
     <div class="setup-container">
@@ -205,6 +240,7 @@
         <!-- במודל עסקי: שני כפתורים - יצירת אווטאר חדש + התחברות עובד -->
         <button type="button" id="createNewAvatarBtn" class="btn btn-secondary">+ Create New Avatar</button>
         <button type="button" id="employeeSignInBtn" class="btn btn-secondary btn-employee-login">Employee Sign In</button>
+        <button type="button" id="createTeamBtn" class="btn btn-secondary" style="position:absolute;bottom:70px;right:20px;z-index:101;">+ Create Team</button>
       </div>
     </div>
   </div>
@@ -357,59 +393,12 @@
     </div>
   </div>
 
-  <script src="AddyApp.js"></script>
-  <!-- Extra Verification modal -->
-<div id="dialog-extra-verify" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="extraVerifyTitle" aria-describedby="extraVerifyDesc">
-  <div class="modal-card" role="document">
-    <h2 id="extraVerifyTitle">Extra verification</h2>
-    <p id="extraVerifyDesc" class="modal-desc">Enter your username and your additional identifier.</p>
-
-    <label class="form-row">Username
-      <input id="ev-username" type="text" autocomplete="username" required>
-    </label>
-
-    <label class="form-row">Recovery code
-      <input id="ev-extra" type="text" autocomplete="one-time-code" required>
-    </label>
-
-    <div class="modal-actions">
-      <button id="ev-cancel" class="btn-secondary" type="button">Cancel</button>
-      <button id="ev-submit" class="btn-primary" type="button">Continue</button>
-    </div>
-
-    <p id="ev-error" class="neutral-hint" style="min-height:1em"></p>
-  </div>
-</div>
-
-<!-- Reset Password modal -->
-<div id="dialog-reset-pwd" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="resetPwdTitle" aria-describedby="resetPwdDesc">
-  <div class="modal-card" role="document">
-    <h2 id="resetPwdTitle">Reset password</h2>
-    <p id="resetPwdDesc" class="modal-desc">Choose a strong password. You can view it while typing.</p>
-
-    <label class="form-row">New password
-      <input id="rp-new" type="password" autocomplete="new-password" required>
-    </label>
-
-    <label class="form-row">Confirm password
-      <input id="rp-confirm" type="password" autocomplete="new-password" required>
-    </label>
-
-    <label class="inline">
-      <input id="rp-show" type="checkbox"> Show password
-    </label>
-
-    <ul id="rp-requirements" class="req-list" aria-live="polite">
-      <li data-req="len">At least 8 characters (up to 128)</li>
-      <li data-req="common">Not a common/breached password</li>
-    </ul>
-
-    <div class="modal-actions">
-      <button id="rp-cancel" class="btn-secondary" type="button">Cancel</button>
-      <button id="rp-submit" class="btn-primary" type="button" disabled>Save new password</button>
-    </div>
-  </div>
-</div>
-
+<!-- ===================== Scripts (order matters) ===================== -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+  window.SUPABASE_URL  = "https://guzdovkwgzgzdnswuoou.supabase.co";
+  window.SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1emRvdmt3Z3pnemRuc3d1b291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NjQ1NTUsImV4cCI6MjA3MzU0MDU1NX0.MzbKYe9Icdss4qo7FctN-OAb_hzEBhrr0Gi8ZfkbyJc";
+</script>
+<script src="AddyApp.js"></script>
 </body>
 </html>
