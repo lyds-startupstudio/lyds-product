@@ -517,7 +517,7 @@ if(map) {
   
   // Position avatars in a horizontal line below team boxes
   const startX = 60;
-  const startY = 400; // Below the teams
+  const startY = 500; // Below the teams
   const spacing = 100;
   
   // Create character for each avatar
@@ -624,7 +624,7 @@ if(!isPersonal && state.teams[item]) {
   // Don't show avatars in team boxes
 }
     
-    const enter=Object.assign(document.createElement('div'),{className:'room-enter',textContent:'Press E to enter'});
+const enter=Object.assign(document.createElement('div'),{className:'room-enter',textContent:'Press Enter'});
     el.append(title,members,enter);
     const r=Math.floor(i/cols), col=i%cols; 
     el.style.left=(startX+col*cellW)+'px'; 
@@ -663,6 +663,7 @@ function renderSidebar(){
             <div class="emp-meta">${a.role}${a.team?' · '+a.team:''}</div>
           </div>
         </div>`).join('') || `<div class="empty">No employees</div>`;
+
 list.querySelectorAll('.employee-item').forEach(el=> {
   el.onclick=()=>{
     const clickedId = el.dataset.id;
@@ -670,7 +671,13 @@ list.querySelectorAll('.employee-item').forEach(el=> {
     renderPlatformForUser();
     toast(`Now controlling ${state.avatars.find(a=>a.id===clickedId)?.name}`);
   };
-});    }
+  el.ondblclick=(e)=>{
+    e.stopPropagation();
+    openEmployeeProfile(el.dataset.id);
+  };
+}); 
+
+}
   };
   if(search) search.oninput=refresh;
   refresh();
@@ -687,6 +694,11 @@ function isLead(avatar){
 function openEmployeeProfile(id){
   const a=state.avatars.find(x=>x.id===id); 
   if(!a) return;
+  
+  const teamOptions = state.setup.teams.map(t => 
+    `<option value="${t}" ${a.team === t ? 'selected' : ''}>${t}</option>`
+  ).join('');
+  
   const modal=buildModal('Employee Profile',(body,close)=>{
     body.innerHTML=`
       <div class="modal-form">
@@ -698,38 +710,84 @@ function openEmployeeProfile(id){
           </div>
         </div>
         <div class="profile-row"><span>Role</span><strong>${a.role}</strong></div>
-        <div class="profile-row"><span>Team</span><strong>${a.team||'—'}</strong></div>
+        <div class="form-group">
+          <label class="form-label">Team</label>
+          <select id="editTeam" class="form-control">
+            <option value="">No Team</option>
+            ${teamOptions}
+          </select>
+        </div>
         <div class="profile-row"><span>Team Lead</span><strong>${isLead(a)?'Yes':'No'}</strong></div>
-        <div class="modal-buttons"><button id="closeEmp" class="btn btn-secondary">Close</button></div>
+        <div class="modal-buttons">
+          <button id="closeEmp" class="btn btn-secondary">Close</button>
+          <button id="saveEmp" class="btn btn-primary">Save Changes</button>
+        </div>
       </div>`;
+    
     const closeBtn = byId('closeEmp');
+    const saveBtn = byId('saveEmp');
+    
     if(closeBtn) closeBtn.onclick=close;
+    if(saveBtn) {
+      saveBtn.onclick = () => {
+        const newTeam = byId('editTeam')?.value;
+        
+        if(a.team && state.teams[a.team]) {
+          state.teams[a.team].members = state.teams[a.team].members.filter(memberId => memberId !== a.id);
+        }
+        
+        a.team = newTeam || null;
+        
+        if(newTeam) {
+          ensureTeamExists(newTeam);
+          if(!state.teams[newTeam].members.includes(a.id)) {
+            state.teams[newTeam].members.push(a.id);
+          }
+        }
+        
+        saveCurrentWorkspace();
+        close();
+        renderPlatformForUser();
+        toast('Employee team updated');
+      };
+    }
   });
   document.body.appendChild(modal);
 }
+
+
 
 /* ===========================
    Office Movement
    =========================== */
 function startOfficeControls(){
-  const map=byId('officeMap'), ch=byId('userCharacter'); 
-  if(!map||!ch) return;
+  const map=byId('officeMap');
+  if(!map) return;
+  
   stopOfficeControls();
-  const rect=map.getBoundingClientRect(); 
-  state.office.posX=rect.width/2; 
-  state.office.posY=rect.height/2;
-  pos(); 
+  
+  // Initialize positions for each avatar if not set
+  if(!state.office.avatarPositions) {
+    state.office.avatarPositions = {};
+    const startX = 60, startY = 500, spacing = 100;
+    state.avatars.forEach((avatar, idx) => {
+      state.office.avatarPositions[avatar.id] = {
+        x: startX + idx * spacing,
+        y: startY
+      };
+    });
+  }
+  
   const keys=state.office.keys;
-
-  const kd=(e)=>{ 
-    const k=norm(e.key); 
-    if(!k) return; 
-    keys[k]=true; 
-    if(k==='e'&&state.office.nearTeam){ 
-      stopOfficeControls(); 
-      openTeam(state.office.nearTeam); 
-    } 
-  };
+const kd=(e)=>{ 
+  const k=norm(e.key); 
+  if(!k && e.key !== 'Enter') return; 
+  if(k) keys[k]=true; 
+  if((k==='e' || e.key === 'Enter') && state.office.nearTeam){ 
+    stopOfficeControls(); 
+    openTeam(state.office.nearTeam); 
+  } 
+};
   const ku=(e)=>{ 
     const k=norm(e.key); 
     if(!k) return; 
@@ -742,37 +800,56 @@ function startOfficeControls(){
   document.addEventListener('keyup',ku);
 
   const step=()=>{ 
+    const currentUserId = state.currentUserId;
+    if(!currentUserId) {
+      state.office.loopId=requestAnimationFrame(step);
+      return;
+    }
+    
     const s=state.office.speed; 
     let dx=0,dy=0; 
     if(keys.left)dx-=s; 
     if(keys.right)dx+=s; 
     if(keys.up)dy-=s; 
     if(keys.down)dy+=s;
+    
     if(dx&&dy){ 
       const m=Math.sqrt(2); 
       dx/=m; 
       dy/=m; 
     }
-    const mrg=30,w=map.clientWidth,h=map.clientHeight; 
-    state.office.posX=clamp(state.office.posX+dx,mrg,w-mrg); 
-    state.office.posY=clamp(state.office.posY+dy,mrg,h-mrg);
-    pos(); 
+    
+    const mrg=30, w=map.clientWidth, h=map.clientHeight;
+    const pos = state.office.avatarPositions[currentUserId];
+    if(pos) {
+      pos.x = clamp(pos.x + dx, mrg, w - mrg);
+      pos.y = clamp(pos.y + dy, mrg, h - mrg);
+      
+      const ch = byId(`char-${currentUserId}`);
+      if(ch) {
+        ch.style.left = pos.x + 'px';
+        ch.style.top = pos.y + 'px';
+      }
+    }
+    
     near(); 
     state.office.loopId=requestAnimationFrame(step); 
   };
   step();
 
-  function pos(){ 
-    ch.style.left=state.office.posX+'px'; 
-    ch.style.top=state.office.posY+'px'; 
-  }
-  
   function near(){
+    const currentUserId = state.currentUserId;
+    if(!currentUserId) return;
+    
+    const ch = byId(`char-${currentUserId}`);
+    if(!ch) return;
+    
     const rooms=$$('.team-room'); 
     const cr=ch.getBoundingClientRect(); 
     const mr=map.getBoundingClientRect();
-    const cc={x:cr.left-mr.left+cr.width/2,y:cr.top-mr.top+cr.height/2}; 
-    let best=null,dist=Infinity;
+    const cc={x:cr.left-mr.left+cr.width/2, y:cr.top-mr.top+cr.height/2}; 
+    let best=null, dist=Infinity;
+    
     rooms.forEach(rm=>{
       const rr=rm.getBoundingClientRect();
       const r={left:rr.left-mr.left, top:rr.top-mr.top, right:rr.right-mr.left, bottom:rr.bottom-mr.top};
@@ -787,6 +864,10 @@ function startOfficeControls(){
     state.office.nearTeam = best ? best.dataset.team : null;
   }
 }
+
+
+
+
 
 function stopOfficeControls(){
   if(state.office.loopId){ 
@@ -836,6 +917,18 @@ function openTeam(teamName){
   if(!team) return;
 
   stopOfficeControls();
+
+  // Show back button
+const topBackBtn = byId('backToPlatform');
+if(topBackBtn) {
+  topBackBtn.style.display = 'inline-flex';
+  topBackBtn.onclick = () => {
+    showScreen('platform');
+    renderPlatformForUser();
+    updateTeamPointsDisplay();
+    topBackBtn.style.display = 'none';
+  };
+}
   const tn = byId('teamName'); if(tn) tn.textContent=teamName;
 
   const list=byId('teamMembersList');
@@ -870,8 +963,14 @@ function openTeam(teamName){
   const manageBtn = byId('manageEventsBtn');
   if(manageBtn) manageBtn.onclick=()=>showManageEventsModal(teamName);
 
-  const backBtn = byId('backButton');
-  if(backBtn) backBtn.onclick=()=>{ showScreen('platform'); renderPlatformForUser(); updateTeamPointsDisplay(); };
+const backBtn = byId('backButton');
+if(backBtn) backBtn.onclick=()=>{ 
+  showScreen('platform'); 
+  renderPlatformForUser(); 
+  updateTeamPointsDisplay();
+  const topBackBtn = byId('backToPlatform');
+  if(topBackBtn) topBackBtn.style.display = 'none';
+};
 
   const toggle = byId('beltToggle');
   if(toggle) {

@@ -480,6 +480,27 @@ button:focus, input:focus { outline: 2px solid #3b82f6; outline-offset: 2px; }
   z-index: 10000; /* higher than your sign-in modal */
 }
 
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background 0.2s;
+  margin-right: 8px;
+}
+
+.btn-icon:hover {
+  background: rgba(0,0,0,0.05);
+}
+
+.btn-icon svg {
+  display: block;
+}
+
 /* tiny shake helper for a neutral error cue */
 .modal-card.shake {
   animation: qb-shake 0.25s linear 1;
