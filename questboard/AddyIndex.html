@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>QuestBoard - Gamified Team Management</title>
+  <title>Addy - Gamified Team Management</title>
   <link rel="stylesheet" href="AddyStyle.css"/>
 </head>
 <body>
@@ -14,15 +14,14 @@
       <div class="setup-topbar">
         <button id="haveAccountBtn" class="btn btn-secondary btn-auth">Already have an account? Sign In</button>
       </div>
-      <div class="setup-logo">QuestBoard</div>
       <h1 class="setup-title">Create Your Account</h1>
-      <p class="setup-subtitle">Get started with QuestBoard</p>
+      <p class="setup-subtitle">Get started with Addy</p>
     </div>
 
     <div class="setup-content" style="justify-content:center;">
       <div style="max-width:400px;width:100%;margin:0 auto;">
         <div style="margin-bottom:16px;padding:12px;background:#f0f9ff;border-radius:8px;font-size:13px;">
-          💡 Create your account to start using QuestBoard
+          💡 Create your account to start using Addy
         </div>
         
         <form id="initialSignupForm">
@@ -42,24 +41,24 @@
     </div>
   </div>
 </div>
+
   <!-- Setup Screen -->
-  <div id="setupScreen" class="screen active">
+  <div id="setupScreen" class="screen">
     <div class="setup-container">
       <div class="setup-header">
         <div class="setup-topbar">
-          <!-- כפתור התחברות כללי מעמוד פתיחה (גם Personal וגם Business) -->
           <button id="globalSignInBtn" class="btn btn-secondary btn-auth">Sign In</button>
         </div>
-        <div class="setup-logo">QuestBoard</div>
+        <div class="setup-logo">Addy</div>
         <h1 class="setup-title">Setup Your Workspace</h1>
-        <p class="setup-subtitle">Let's customize QuestBoard for your specific needs</p>
+        <p class="setup-subtitle">Let's customize your workspace</p>
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
       </div>
 
       <div class="setup-content">
         <!-- Step 1 -->
         <div class="step active" id="step1">
-          <h2 class="step-title">Who will be using QuestBoard?</h2>
+          <h2 class="step-title">Who will be using this?</h2>
           <div class="option-grid">
             <div class="option-card" onclick="selectOption('userType','personal',this)">
               <span class="option-icon">👤</span>
@@ -69,12 +68,8 @@
             <div class="option-card" onclick="selectOption('userType','business',this)">
               <span class="option-icon">🏢</span>
               <h3 class="option-title">Business/Team</h3>
-              <p class="option-description">Manage team tasks, collaborate with colleagues, and track business objectives</p>
+              <p class="option-description">Manage team tasks, collaborate with colleagues</p>
             </div>
-          </div>
-          <!-- אזור הסבר קצר על ההתחברות (לא משנה UI קיים) -->
-          <div class="auth-hint">
-            Already have a workspace? Click <strong>Sign In</strong> (top-right) to load it.
           </div>
         </div>
 
@@ -93,7 +88,7 @@
 
         <!-- Step 2B -->
         <div class="step" id="step2b">
-          <h2 class="step-title">What's your main goal with QuestBoard?</h2>
+          <h2 class="step-title">What's your main goal?</h2>
           <div class="option-grid">
             <div class="option-card" onclick="selectOption('personalPurpose','productivity',this)"><span class="option-icon">⚡</span><h3 class="option-title">Personal Productivity</h3></div>
             <div class="option-card" onclick="selectOption('personalPurpose','study',this)"><span class="option-icon">📚</span><h3 class="option-title">Study & Learning</h3></div>
@@ -135,62 +130,86 @@
     </div>
   </div>
 
-  <!-- Avatar Creation -->
+  <!-- Avatar Creation - TWO STEPS -->
   <div id="avatarScreen" class="screen">
     <div class="avatar-creation-container">
       <div class="avatar-card">
         <button type="button" class="back-link" id="avatarBackBtn">← Back</button>
-        <h1 class="avatar-title">Create Your Quest Avatar</h1>
-        <form id="avatarForm" class="avatar-form">
-          <div class="form-group">
-            <label class="form-label">Your Name</label>
-            <input id="userName" class="form-control" placeholder="Enter your name" required/>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Job Title</label>
-            <input id="jobTitle" class="form-control" placeholder="Enter your role (optional)"/>          </div>
-
-          <!-- Business only: Team selection -->
-          <div class="form-group" id="teamSelectionGroup" style="display:none;">
-            <label class="form-label">Select Your Team</label>
-            <select id="userTeam" class="form-control">
-              <option value="">Select your team</option>
-            </select>
-          </div>
-
-          <!-- Business only: יצירת חשבון לעובד (נפתח רק במסגרת יצירת אווטאר חדש מתוך האזור העסקי) -->
-          <div id="avatarAuthBlock" class="avatar-auth-block" style="display:none">
+        
+        <!-- STEP 1: Basic Info + Avatar Selection -->
+        <div id="avatarStep1" class="avatar-step">
+          <h1 class="avatar-title">Create Your Avatar</h1>
+          <form id="avatarStep1Form" class="avatar-form">
             <div class="form-group">
-              <label class="form-label">Employee Username</label>
-              <input id="avatarUsername" class="form-control" placeholder="Choose a username"/>
+              <label class="form-label">Your Name</label>
+              <input id="userName" class="form-control" placeholder="Enter your name" required/>
             </div>
+            
             <div class="form-group">
-              <label class="form-label">Employee Password</label>
-              <input id="avatarPassword" type="password" class="form-control" placeholder="Choose a password"/>
+              <label class="form-label">Job Title</label>
+              <input id="jobTitle" class="form-control" placeholder="Enter your role" required/>
             </div>
-          </div>
 
-          <div class="form-group">
-            <label class="form-label">Choose Your Avatar</label>
-            <div id="avatarGrid" class="avatar-grid"></div>
-          </div>
-          <div class="avatar-actions">
-            <button type="button" class="btn btn-secondary" id="cancelAvatarBtn">Cancel</button>
-            <button type="submit" class="btn btn--primary quest-button">
-              <span>Start Your Journey</span>
-              <div class="button-shine"></div>
-            </button>
-          </div>
-        </form>
+            <div class="form-group" id="teamSelectionGroup" style="display:none;">
+              <label class="form-label">Select Your Team</label>
+              <select id="userTeam" class="form-control">
+                <option value="">Select your team</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Choose Your Avatar</label>
+              <div id="avatarGrid" class="avatar-grid"></div>
+            </div>
+
+            <div class="avatar-actions">
+              <button type="button" class="btn btn-secondary" id="cancelAvatarBtn">Cancel</button>
+              <button type="submit" class="btn btn-primary">Next</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- STEP 2: Employee Credentials (Business Only) -->
+        <div id="avatarStep2" class="avatar-step" style="display:none;">
+          <h1 class="avatar-title">Employee Login Credentials</h1>
+          <form id="avatarStep2Form" class="avatar-form">
+            <div style="margin-bottom:16px;padding:12px;background:#f0f9ff;border-radius:8px;font-size:13px;">
+              💡 Set up login credentials for this employee
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Employee Email</label>
+              <input id="avatarEmail" type="email" class="form-control" placeholder="employee@company.com" required/>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input id="avatarPassword" type="password" class="form-control" placeholder="Choose a password (min 8 characters)" required/>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Internal Username (optional)</label>
+              <input id="avatarUsername" class="form-control" placeholder="e.g., john.doe"/>
+            </div>
+
+            <div class="avatar-actions">
+              <button type="button" class="btn btn-secondary" id="backToStep1Btn">Back</button>
+              <button type="submit" class="btn btn--primary quest-button">
+                <span>Create Employee</span>
+                <div class="button-shine"></div>
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Office -->
+  <!-- Platform -->
   <div id="platformScreen" class="screen">
     <div class="platform-container">
       <header class="top-nav">
-        <div class="nav-left"><div class="logo">QuestBoard</div></div>
+        <div class="nav-left"><div class="logo">Addy</div></div>
         <div class="nav-center">
           <div class="user-info">
             <div id="navUserAvatar" class="user-avatar-nav"></div>
@@ -237,7 +256,6 @@
           </div>
         </aside>
 
-        <!-- במודל עסקי: שני כפתורים - יצירת אווטאר חדש + התחברות עובד -->
         <button type="button" id="createNewAvatarBtn" class="btn btn-secondary">+ Create New Avatar</button>
         <button type="button" id="employeeSignInBtn" class="btn btn-secondary btn-employee-login">Employee Sign In</button>
         <button type="button" id="createTeamBtn" class="btn btn-secondary" style="position:absolute;bottom:70px;right:20px;z-index:101;">+ Create Team</button>
@@ -245,7 +263,7 @@
     </div>
   </div>
 
-  <!-- Team -->
+  <!-- Team Screen -->
   <div id="teamScreen" class="screen">
     <div class="team-container">
       <header class="team-header">
@@ -255,12 +273,11 @@
           <div id="teamMembersList" class="team-members"></div>
         </div>
         <div class="team-actions">
-          <button type="button" id="addTaskHeaderBtn" class="add-task-header-btn" aria-label="Add new task">+ Add Task</button>
+          <button type="button" id="addTaskHeaderBtn" class="add-task-header-btn">+ Add Task</button>
           <button type="button" id="manageEventsBtn" class="manage-events-btn">⚙️ Manage Events</button>
         </div>
       </header>
 
-      <!-- Backlog belt (top) -->
       <section class="backlog-belt">
         <div class="belt-header">
           <div class="belt-left">
@@ -277,123 +294,54 @@
         </div>
       </section>
 
-      <!-- Kanban (other columns) -->
       <div class="kanban-board">
-      <div class="kanban-column todo-column">
-        <div class="column-header todo-header">
-          <div class="column-left">
-            <span class="column-title">📋 TODO</span>
+        <div class="kanban-column todo-column">
+          <div class="column-header todo-header">
+            <div class="column-left"><span class="column-title">📋 TODO</span></div>
+            <div class="column-right">
+              <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('todo')">+</button>
+              <span id="todoCount" class="column-count">0</span>
+            </div>
           </div>
-          <div class="column-right">
-            <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('todo')">+</button>
-            <span id="todoCount" class="column-count">0</span>
-          </div>
+          <div id="todoTasks" class="column-content" data-status="todo"></div>
         </div>
-        <div id="todoTasks" class="column-content" data-status="todo"></div>
-      </div>
 
-      <div class="kanban-column progress-column">
-        <div class="column-header progress-header">
-          <div class="column-left">
-            <span class="column-title">🔥 In Progress</span>
+        <div class="kanban-column progress-column">
+          <div class="column-header progress-header">
+            <div class="column-left"><span class="column-title">🔥 In Progress</span></div>
+            <div class="column-right">
+              <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('in-progress')">+</button>
+              <span id="progressCount" class="column-count">0</span>
+            </div>
           </div>
-          <div class="column-right">
-            <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('in-progress')">+</button>
-            <span id="progressCount" class="column-count">0</span>
-          </div>
+          <div id="progressTasks" class="column-content" data-status="in-progress"></div>
         </div>
-        <div id="progressTasks" class="column-content" data-status="in-progress"></div>
-      </div>
 
-      <div class="kanban-column waiting-column">
-        <div class="column-header waiting-header">
-          <div class="column-left">
-            <span class="column-title">⏳ Waiting for approvment</span>
+        <div class="kanban-column waiting-column">
+          <div class="column-header waiting-header">
+            <div class="column-left"><span class="column-title">⏳ Waiting</span></div>
+            <div class="column-right">
+              <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('waiting')">+</button>
+              <span id="waitingCount" class="column-count">0</span>
+            </div>
           </div>
-          <div class="column-right">
-            <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('waiting')">+</button>
-            <span id="waitingCount" class="column-count">0</span>
-          </div>
+          <div id="waitingTasks" class="column-content" data-status="waiting"></div>
         </div>
-        <div id="waitingTasks" class="column-content" data-status="waiting"></div>
-      </div>
 
-      <div class="kanban-column done-column">
-        <div class="column-header done-header">
-          <div class="column-left">
-            <span class="column-title">✅ Done</span>
+        <div class="kanban-column done-column">
+          <div class="column-header done-header">
+            <div class="column-left"><span class="column-title">✅ Done</span></div>
+            <div class="column-right">
+              <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('done')">+</button>
+              <span id="doneCount" class="column-count">0</span>
+            </div>
           </div>
-          <div class="column-right">
-            <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('done')">+</button>
-            <span id="doneCount" class="column-count">0</span>
-          </div>
+          <div id="doneTasks" class="column-content" data-status="done"></div>
         </div>
-        <div id="doneTasks" class="column-content" data-status="done"></div>
-      </div>
       </div>
     </div>
   </div>
 
-  <!-- Extra Verification modal (added) -->
-  <div id="dialog-extra-verify" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="extraVerifyTitle" aria-describedby="extraVerifyDesc">
-    <div class="modal-card" role="document">
-      <h2 id="extraVerifyTitle">Extra verification</h2>
-      <p id="extraVerifyDesc" class="modal-desc">
-        Enter your username and your additional identifier.
-      </p>
-
-      <label class="form-row">Username
-        <input id="ev-username" type="text" autocomplete="username" required>
-      </label>
-
-      <label class="form-row">Recovery code
-        <input id="ev-extra" type="text" autocomplete="one-time-code" required>
-      </label>
-
-      <div class="modal-actions">
-        <button id="ev-cancel" class="btn-secondary" type="button">Cancel</button>
-        <button id="ev-submit" class="btn-primary" type="button">Continue</button>
-      </div>
-
-      <p class="neutral-hint">
-        If details match, we’ll proceed to reset.
-      </p>
-    </div>
-  </div>
-
-  <!-- Reset Password modal (added) -->
-  <div id="dialog-reset-pwd" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="resetPwdTitle" aria-describedby="resetPwdDesc">
-    <div class="modal-card" role="document">
-      <h2 id="resetPwdTitle">Reset password</h2>
-      <p id="resetPwdDesc" class="modal-desc">
-        Choose a strong password. You can view it while typing.
-      </p>
-
-      <label class="form-row">New password
-        <input id="rp-new" type="password" autocomplete="new-password" required>
-      </label>
-
-      <label class="form-row">Confirm password
-        <input id="rp-confirm" type="password" autocomplete="new-password" required>
-      </label>
-
-      <label class="inline">
-        <input id="rp-show" type="checkbox"> Show password
-      </label>
-
-      <ul id="rp-requirements" class="req-list" aria-live="polite">
-        <li data-req="len">At least 8 characters (support up to 64+)</li>
-        <li data-req="common">Not a common or breached password</li>
-      </ul>
-
-      <div class="modal-actions">
-        <button id="rp-cancel" class="btn-secondary" type="button">Cancel</button>
-        <button id="rp-submit" class="btn-primary" type="button" disabled>Save new password</button>
-      </div>
-    </div>
-  </div>
-
-<!-- ===================== Scripts (order matters) ===================== -->
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
   window.SUPABASE_URL  = "https://guzdovkwgzgzdnswuoou.supabase.co";
