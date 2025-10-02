@@ -164,7 +164,10 @@ function hydrateFrom(ws){
 
 /** DOM helpers **/
 const $ = (s)=>document.querySelector(s);
-const $$ = (s)=>Array.from(document.querySelectorAll(s));
+const $$ = (s)=>{
+  const elements = document.querySelectorAll(s);
+  return elements ? Array.from(elements) : [];
+};
 const byId=(id)=>document.getElementById(id);
 
 /** Screens **/
@@ -215,13 +218,11 @@ function nextStep(){
 
   // Last step completed
   if (state.setup.userType === 'business') {
-    (async () => {
-      createWorkspace('business', null, null);
-      try { await saveCurrentWorkspace(); } catch (e) { console.warn('Cloud save failed:', e); }
-      renderPlatformForUser();
-      showScreen('platform');
-      toast('Business workspace created.');
-    })();
+    createWorkspace('business', null, null);
+    saveCurrentWorkspace();
+    renderPlatformForUser();
+    showScreen('platform');
+    toast('Business workspace created.');
     return;
   }
 
@@ -229,6 +230,9 @@ function nextStep(){
   prepareAvatarScreen(true);
   showScreen('avatar');
 }
+
+
+
 
 function selectOption(field,val,el){
   if(field==='userType'){ state.setup.userType=val; state.setup.businessType=null; state.setup.personalPurpose=null; }
@@ -315,6 +319,7 @@ function prepareAvatarScreen(isPersonalCreation=false){
   if(grid) {
     grid.innerHTML='';
     let selected=null;
+
     DEFAULT_AVATARS.forEach(emo=>{
       const el=document.createElement('div'); 
       el.className='avatar-option'; 
@@ -353,40 +358,45 @@ function prepareAvatarScreen(isPersonalCreation=false){
   // STEP 1 Form
   const form1 = byId('avatarStep1Form');
   if(form1){
-    form1.onsubmit=(e)=>{
-      e.preventDefault();
-      const name=byId('userName')?.value.trim();
-      const role=byId('jobTitle')?.value.trim();
-      const team=isBiz ? byId('userTeam')?.value : null;
-      
-      if(!name) { toast('Please enter your name'); return; }
-      if(isBiz && !role) { toast('Please enter your role'); return; }
-      if(isBiz && !team) { toast('Please select your team'); return; }
+form1.onsubmit=(e)=>{
+  e.preventDefault();
+  const name=byId('userName')?.value.trim();
+  const role=byId('jobTitle')?.value.trim() || 'Personal User';
+  const team=isBiz ? byId('userTeam')?.value : null;
+console.log('Selected team from dropdown:', team, 'isBiz:', isBiz);
 
-      // Get selected emoji
-      const selectedEl = byId('avatarGrid')?.querySelector('.avatar-option.selected');
-      const emoji = selectedEl?.textContent || DEFAULT_AVATARS[0];
 
-      // Store temp data
-      state.tempAvatar = {
-        id: generateId('avt'),
-        name,
-        role: role || 'Personal User',
-        emoji,
-        team,
-        isTeamLead: false
-      };
+  if(!name) { toast('Please enter your name'); return; }
+  if(isBiz && !team) { toast('Please select your team'); return; }
 
-      // Business: go to step 2 (credentials)
-      // Personal: create avatar immediately
-      if(isBiz){
-        byId('avatarStep1').style.display = 'none';
-        byId('avatarStep2').style.display = 'block';
-      } else {
-        // Personal: create immediately
-        finishAvatarCreation(isPersonalCreation);
-      }
-    };
+  // Get selected emoji
+const selectedEl = byId('avatarGrid')?.querySelector('.avatar-option.selected');
+const emoji = selectedEl?.textContent?.trim() || DEFAULT_AVATARS[0];
+console.log('Selected emoji:', emoji, 'Length:', emoji.length);
+  // Store temp data
+  state.tempAvatar = {
+    id: generateId('avt'),
+    name,
+    role,
+    emoji,
+    team,
+    isTeamLead: false
+  };
+
+  // Business: go to step 2 (credentials)
+  // Personal: create avatar immediately
+  if(isBiz){
+    byId('avatarStep1').style.display = 'none';
+    byId('avatarStep2').style.display = 'block';
+  } else {
+    // Personal: create immediately
+    finishAvatarCreation(isPersonalCreation);
+  }
+};
+
+
+
+
   }
 
   // STEP 2 Form (Business only)
@@ -437,34 +447,36 @@ function finishAvatarCreation(isPersonalCreation){
   if(!state.tempAvatar) return;
 
   const avatar = state.tempAvatar;
+  console.log('Creating avatar:', avatar);
+  
   state.avatars.push(avatar);
   state.currentUserId = avatar.id;
 
   // Add to team
   if(avatar.team) {
+    console.log('Avatar has team:', avatar.team);
     ensureTeamExists(avatar.team);
-    state.teams[avatar.team].members.push(avatar.id);
+    console.log('Team before adding member:', JSON.stringify(state.teams[avatar.team]));
+    
+    if(!state.teams[avatar.team].members.includes(avatar.id)) {
+      state.teams[avatar.team].members.push(avatar.id);
+    }
     if(!state.teams[avatar.team].leadId){ 
       state.teams[avatar.team].leadId = avatar.id; 
       avatar.isTeamLead = true; 
     }
+    console.log('Team after adding member:', JSON.stringify(state.teams[avatar.team]));
+  } else {
+    console.log('Avatar has NO team!');
   }
 
   // Personal first creation
   if(state.workspace.type==='personal' && !state.workspace.id){
-    (async ()=>{
-      const user = await currentUser();
-      if(!user){
-        toast('Please sign in first');
-        return;
-      }
-      
-      createWorkspace('personal', null, null);
-      await saveCurrentWorkspace();
-      renderPlatformForUser(); 
-      showScreen('platform'); 
-      toast('Workspace created successfully');
-    })();
+    createWorkspace('personal', null, null);
+    saveCurrentWorkspace();
+    renderPlatformForUser(); 
+    showScreen('platform'); 
+    toast('Workspace created successfully');
     return;
   }
 
@@ -474,6 +486,9 @@ function finishAvatarCreation(isPersonalCreation){
   showScreen('platform');
   toast('Avatar created successfully');
 }
+
+
+
 
 function ensureTeamExists(name){
   if(!state.teams[name]) {
@@ -494,13 +509,46 @@ function renderPlatformForUser(){
   if(navUserName) navUserName.textContent=u?.name || (state.workspace.type==='business'?'Not signed in':'');
   if(navUserRole) navUserRole.textContent=u?.role || '';
 
-  const char=byId('userCharacter');
-  if(char){
-    const ca = char.querySelector('.character-avatar');
-    const cn = char.querySelector('.character-name');
-    if(ca) ca.textContent=u?.emoji || '•';
-    if(cn) cn.textContent=u?.name || '';
-  }
+// Render ALL avatars on screen in a horizontal line
+const map = byId('officeMap');
+if(map) {
+  // Remove ALL old characters
+  map.querySelectorAll('.user-character').forEach(c => c.remove());
+  
+  // Position avatars in a horizontal line below team boxes
+  const startX = 60;
+  const startY = 400; // Below the teams
+  const spacing = 100;
+  
+  // Create character for each avatar
+  state.avatars.forEach((avatar, idx) => {
+    const char = document.createElement('div');
+    char.id = `char-${avatar.id}`;
+    char.className = 'user-character';
+    char.style.position = 'absolute';
+    char.style.left = (startX + idx * spacing) + 'px';
+    char.style.top = startY + 'px';
+    
+    const ca = document.createElement('div');
+    ca.className = 'character-avatar';
+    const cn = document.createElement('div');
+    cn.className = 'character-name';
+    
+    char.appendChild(ca);
+    char.appendChild(cn);
+    map.appendChild(char);
+    
+    if(ca) ca.textContent = avatar.emoji || '•';
+    if(cn) cn.textContent = avatar.name || '';
+    
+    // Highlight current user with border
+    if(avatar.id === state.currentUserId) {
+      char.style.outline = '3px solid #4F46E5';
+      char.style.outlineOffset = '2px';
+    }
+  });
+}
+
 
   renderTeamRooms();
   renderSidebar();
@@ -572,16 +620,9 @@ function renderTeamRooms(){
     const title=Object.assign(document.createElement('div'),{className:'room-header',textContent:item});
     const members=Object.assign(document.createElement('div'),{className:'room-members'});
     
-    if(!isPersonal && state.teams[item]) {
-      state.teams[item].members.slice(0,5).forEach(id=>{
-        const a=state.avatars.find(v=>v.id===id); 
-        if(!a) return;
-        const m=document.createElement('div'); 
-        m.className='room-member'; 
-        m.textContent=a.emoji; 
-        members.appendChild(m);
-      });
-    }
+if(!isPersonal && state.teams[item]) {
+  // Don't show avatars in team boxes
+}
     
     const enter=Object.assign(document.createElement('div'),{className:'room-enter',textContent:'Press E to enter'});
     el.append(title,members,enter);
@@ -622,8 +663,14 @@ function renderSidebar(){
             <div class="emp-meta">${a.role}${a.team?' · '+a.team:''}</div>
           </div>
         </div>`).join('') || `<div class="empty">No employees</div>`;
-      list.querySelectorAll('.employee-item').forEach(el=> el.onclick=()=>openEmployeeProfile(el.dataset.id));
-    }
+list.querySelectorAll('.employee-item').forEach(el=> {
+  el.onclick=()=>{
+    const clickedId = el.dataset.id;
+    state.currentUserId = clickedId;
+    renderPlatformForUser();
+    toast(`Now controlling ${state.avatars.find(a=>a.id===clickedId)?.name}`);
+  };
+});    }
   };
   if(search) search.oninput=refresh;
   refresh();
@@ -721,7 +768,7 @@ function startOfficeControls(){
   }
   
   function near(){
-    const rooms=$('.team-room'); 
+    const rooms=$$('.team-room'); 
     const cr=ch.getBoundingClientRect(); 
     const mr=map.getBoundingClientRect();
     const cc={x:cr.left-mr.left+cr.width/2,y:cr.top-mr.top+cr.height/2}; 
@@ -754,8 +801,10 @@ function stopOfficeControls(){
     document.removeEventListener('keyup',state.office.keyupHandler); 
     state.office.keyupHandler=null; 
   }
-  $('.team-room .room-enter').forEach(e=>e.style.opacity='0');
+  $$('.team-room .room-enter').forEach(e=>e.style.opacity='0');
 }
+
+
 
 function norm(k){
   if(!k) return null;
@@ -773,9 +822,532 @@ const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 /* ===========================
    Team View (placeholder - keeping original logic)
    =========================== */
+const STATUS_ORDER=['backlog','todo','in-progress','waiting','done'];
+
 function openTeam(teamName){
-  toast('Team view - see original code for full implementation');
+  state.currentTeam=teamName;
+  const isPersonal = state.workspace.type === 'personal';
+  
+  if(isPersonal) {
+    ensureTeamExists(teamName);
+  }
+  
+  const team=state.teams[teamName];
+  if(!team) return;
+
+  stopOfficeControls();
+  const tn = byId('teamName'); if(tn) tn.textContent=teamName;
+
+  const list=byId('teamMembersList');
+  if (list) {
+    list.innerHTML='';
+    team.members.forEach(id=>{
+      const a=state.avatars.find(v=>v.id===id);
+      if(!a) return;
+      const card=document.createElement('div'); card.className='team-member';
+      const av=document.createElement('div'); av.className='member-avatar'; av.textContent=a.emoji;
+      const info=document.createElement('div'); info.className='member-info';
+      const nm=document.createElement('div'); nm.className='member-name'; nm.textContent=a.name+(isLead(a)?' ⭐':'');
+      const rl=document.createElement('div'); rl.className='member-role'; rl.textContent=a.role;
+      info.append(nm,rl); card.append(av,info); list.appendChild(card);
+    });
+  }
+
+  renderBoard(teamName);
+  enableDnD(teamName);
+  showScreen('team');
+
+  setTimeout(() => {
+    const addTaskBtn = byId('addTaskHeaderBtn');
+    if (addTaskBtn) {
+      addTaskBtn.onclick = (e) => {
+        e.preventDefault();
+        showAddTaskModal(teamName);
+      };
+    }
+  }, 50);
+
+  const manageBtn = byId('manageEventsBtn');
+  if(manageBtn) manageBtn.onclick=()=>showManageEventsModal(teamName);
+
+  const backBtn = byId('backButton');
+  if(backBtn) backBtn.onclick=()=>{ showScreen('platform'); renderPlatformForUser(); updateTeamPointsDisplay(); };
+
+  const toggle = byId('beltToggle');
+  if(toggle) {
+    toggle.onclick = ()=>{
+      state.ui.beltPaused = !state.ui.beltPaused;
+      toggle.textContent = state.ui.beltPaused ? 'Play' : 'Pause';
+      renderBacklogBelt(team);
+      enableDnD(teamName);
+    };
+  }
 }
+
+function renderBoard(teamName){
+  const team=state.teams[teamName];
+  renderBacklogBelt(team);
+
+  const buckets={
+    'todo':byId('todoTasks'),
+    'in-progress':byId('progressTasks'),
+    'waiting':byId('waitingTasks'),
+    'done':byId('doneTasks')
+  };
+  Object.values(buckets).forEach(el=>{ if(el) el.innerHTML=''; });
+  const counts={todo:0,'in-progress':0,waiting:0,done:0};
+
+  team.tasks.forEach(task=>{
+    if(task.status==='backlog') return;
+    const col=buckets[task.status]||buckets['todo']; if(!col) return;
+    col.appendChild(renderTaskCard(task, team, false));
+    counts[task.status]=(counts[task.status]||0)+1;
+  });
+
+  const todoCount = byId('todoCount');
+  const progressCount = byId('progressCount');
+  const waitingCount = byId('waitingCount');
+  const doneCount = byId('doneCount');
+  if(todoCount) todoCount.textContent=counts.todo||0;
+  if(progressCount) progressCount.textContent=counts['in-progress']||0;
+  if(waitingCount) waitingCount.textContent=counts.waiting||0;
+  if(doneCount) doneCount.textContent=counts.done||0;
+}
+
+function renderBacklogBelt(team){
+  const tasks = team.tasks.filter(t=>t.status==='backlog');
+  const backlogCount = byId('backlogCount'); if(backlogCount) backlogCount.textContent = tasks.length;
+
+  const viewport = byId('backlogBeltViewport');
+  const track = byId('backlogBeltTrack');
+  if(!viewport || !track) return;
+  track.innerHTML='';
+
+  tasks.forEach(t=> track.appendChild(renderTaskCard(t, team, true)));
+
+  viewport.setAttribute('data-paused', String(state.ui.beltPaused));
+}
+
+function renderTaskCard(task, team, mini=false, isClone=false){
+  const card=document.createElement('div');
+  card.className='task-card task--status-'+(task.status||'backlog')+(mini?' task-mini':'');
+  card.draggable=!isClone;
+  card.dataset.taskId=task.id;
+  if(isClone) {
+    card.setAttribute('data-clone','1');
+    card.style.pointerEvents = 'none';
+  }
+
+  const title=document.createElement('div'); title.className='task-title-lg'; title.textContent=task.title;
+  const statusRow=document.createElement('div'); statusRow.className='task-status-row';
+  const statusText=document.createElement('div'); statusText.className='task-status-text'; statusText.textContent='Status: '+prettyStatus(task.status);
+  statusRow.appendChild(statusText);
+
+  if(task.due){
+    const d=document.createElement('span'); d.className='pill'; d.textContent='due: '+task.due;
+    statusRow.appendChild(d);
+  }
+  if(task.assigneeRole && !task.assigneeId){
+    const r=document.createElement('span'); r.className='pill'; r.textContent='for: '+task.assigneeRole;
+    statusRow.appendChild(r);
+  }
+
+  if(task.status==='waiting'){ const b=document.createElement('span'); b.className='pill pill--warning'; b.textContent='Waiting senior'; statusRow.appendChild(b); }
+  if(task.status==='done'){ const b=document.createElement('span'); b.className='pill pill--success'; b.textContent='Approved'; statusRow.appendChild(b); }
+
+  if(!mini){
+    const desc=document.createElement('div'); desc.className='task-description'; desc.textContent=task.description||'';
+    card.append(title,statusRow,desc);
+  } else {
+    card.append(title,statusRow);
+  }
+
+  const footer=document.createElement('div'); footer.className='task-footer';
+  const pts=document.createElement('div'); pts.className='task-points'; pts.textContent=`${task.points??0} pts`;
+  const asg=document.createElement('div'); asg.className='task-assignee';
+  const assignee=state.avatars.find(a=>a.id===task.assigneeId);
+  asg.textContent=assignee?assignee.emoji:'•';
+  if(task.assigneeRole && !assignee){ asg.title = 'Role: '+task.assigneeRole; }
+  footer.append(pts,asg); card.appendChild(footer);
+
+  const user=getCurrentUser(); const lead=user && isLead(user);
+  if(task.status==='waiting' && lead){
+    const btn=document.createElement('button'); btn.className='approve-button'; btn.textContent='Approve & Done';
+    btn.onclick=(e)=>{
+      e.stopPropagation();
+      team.awardedPoints=(team.awardedPoints||0)+(task.points||0);
+      task.status='done';
+      saveCurrentWorkspace();
+      renderBoard(team.name);
+      enableDnD(team.name);
+      showCelebration(task.points||0);
+    };
+    card.appendChild(btn);
+  }
+
+  if(!isClone){
+    card.onclick=(e)=>{
+      if(e.target.classList.contains('approve-button')) return;
+      showTaskDetailsModal(task, team);
+    };
+  }
+
+  return card;
+}
+
+function prettyStatus(s){
+  if(s==='backlog') return 'Backlog';
+  if(s==='todo') return 'TODO';
+  if(s==='in-progress') return 'In Progress';
+  if(s==='waiting') return 'Waiting for approvment';
+  if(s==='done') return 'Done';
+  return s||'';
+}
+
+function enableDnD(teamName){
+  const team=state.teams[teamName];
+  const user=getCurrentUser();
+  const isLeadUser = user && isLead(user);
+  const isPersonal = state.workspace.type === 'personal';
+
+  const backlogView = byId('backlogBeltViewport');
+  if(backlogView) {
+    backlogView.ondragover=(ev)=>{ ev.preventDefault(); backlogView.classList.add('drag-over'); };
+    backlogView.ondragleave=()=> backlogView.classList.remove('drag-over');
+    backlogView.ondrop=(ev)=>{
+      ev.preventDefault(); backlogView.classList.remove('drag-over');
+      const id=ev.dataTransfer?.getData('text/task-id'); const task=team.tasks.find(t=>t.id===id); if(!task) return;
+      task.status='backlog'; 
+      task.assigneeId = null;
+      saveCurrentWorkspace(); renderBoard(teamName); enableDnD(teamName);
+    };
+  }
+
+  [['todo','todoTasks'],['in-progress','progressTasks'],['waiting','waitingTasks'],['done','doneTasks']].forEach(([status,id])=>{
+    const el=byId(id); if(!el) return;
+    el.ondragover=(ev)=>{ ev.preventDefault(); el.classList.add('drag-over'); };
+    el.ondragleave=()=> el.classList.remove('drag-over');
+    el.ondrop=(ev)=>{
+      ev.preventDefault(); el.classList.remove('drag-over');
+      const taskId=ev.dataTransfer?.getData('text/task-id'); const task=team.tasks.find(t=>t.id===taskId); if(!task) return;
+      const prev = task.status;
+
+      if(prev==='waiting' && status==='done' && !isLeadUser){ toast('Only Team Lead can approve to Done.'); return; }
+
+if(status==='todo' && !task.assigneeId && !isPersonal && team.members.length > 0){
+  promptAssignMember(team, (memberId)=>{
+    task.assigneeId = memberId;
+    task.status = 'todo';
+    saveCurrentWorkspace();
+    renderBoard(teamName); enableDnD(teamName);
+  }, ()=>{
+    // Allow unassigned - don't revert status
+    task.status = status;
+    saveCurrentWorkspace();
+    renderBoard(teamName); enableDnD(teamName);
+  });
+  return;
+}
+
+      if(status==='todo' && !task.assigneeId && isPersonal){
+        task.assigneeId = state.currentUserId;
+      }
+
+      task.status=status;
+      saveCurrentWorkspace();
+      renderBoard(teamName);
+      enableDnD(teamName);
+    };
+  });
+
+  $$('.task-card').forEach(card=>{
+    const isClone = card.getAttribute('data-clone')==='1';
+    if(!isClone) {
+      card.ondragstart=(ev)=>{ ev.dataTransfer?.setData('text/task-id', card.dataset.taskId); setTimeout(()=>card.classList.add('dragging'),0); };
+      card.ondragend=()=> card.classList.remove('dragging');
+    }
+  });
+}
+
+function showAddTaskModal(teamName, targetStatus = 'backlog'){
+  ensureTeamExists(teamName);
+  const team=state.teams[teamName];
+  const isPersonal = state.workspace.type === 'personal';
+
+console.log('Team members:', team.members);
+console.log('All avatars:', state.avatars);
+state.avatars.forEach(a => console.log('Avatar:', a.name, 'Team:', a.team, 'ID:', a.id));
+
+const memberOptions = !isPersonal ? team.members.map(id=>{
+  const a=state.avatars.find(v=>v.id===id);
+  console.log('Looking for avatar with id:', id, 'Found:', a);
+  const nm = a ? a.name : id;
+  return `<option value="${id}">${nm}</option>`;
+}).join('') : '';
+
+console.log('Member options HTML:', memberOptions);
+
+  const assigneeSection = !isPersonal ? `
+    <div class="form-group">
+      <label>Assignee (optional)</label>
+      <select id="taskAssignee" class="form-control">
+        <option value="">— Choose member (optional) —</option>
+        ${memberOptions}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Or by Role (optional)</label>
+      <input id="taskAssigneeRole" class="form-control" placeholder="e.g., QA, Team Lead, Designer" />
+    </div>` : '';
+
+  const modal=buildModal('Add New Task',(body,close)=>{
+    body.innerHTML=`
+      <form id="addTaskForm" class="modal-form">
+        <div class="form-group">
+          <label>Task Title</label>
+          <input id="taskTitle" class="form-control" required />
+        </div>
+
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="taskDescription" class="form-control" rows="3"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Due date</label>
+          <input id="taskDue" type="date" class="form-control" />
+        </div>
+
+        ${assigneeSection}
+
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="taskPriority" class="form-control">
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Points</label>
+          <input id="taskPoints" type="number" class="form-control" min="1" max="500" value="10" />
+        </div>
+
+<div class="modal-buttons">
+  <button type="button" id="cancelAssign" class="btn btn-secondary">Cancel</button>
+  <button type="button" id="skipAssign" class="btn btn-secondary">Skip (Unassigned)</button>
+  <button type="submit" class="btn btn-primary">Assign</button>
+</div>
+      </form>`;
+
+    setTimeout(() => {
+      const cancelBtn = byId('cancelBtn'); if (cancelBtn) cancelBtn.onclick = close;
+
+      const addTaskForm = byId('addTaskForm');
+      if (addTaskForm) {
+        addTaskForm.onsubmit = (e) => {
+          e.preventDefault();
+          const title = byId('taskTitle')?.value.trim();
+          if(!title){ toast('Please enter task title'); return; }
+
+          const chosenAssignee = !isPersonal ? (byId('taskAssignee')?.value || null) : state.currentUserId;
+          const roleText = !isPersonal ? (byId('taskAssigneeRole')?.value.trim() || null) : null;
+
+          const task={
+            id:'tsk_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+            title,
+            description:byId('taskDescription')?.value.trim() || '',
+            priority:byId('taskPriority')?.value || 'medium',
+            points:Number(byId('taskPoints')?.value)||0,
+            due: byId('taskDue')?.value || null,
+            assigneeId: chosenAssignee,
+            assigneeRole: roleText,
+            status: targetStatus
+          };
+
+          team.tasks.push(task);
+          saveCurrentWorkspace();
+          close();
+          renderBoard(teamName);
+          enableDnD(teamName);
+        };
+      }
+    }, 0);
+  });
+  document.body.appendChild(modal);
+}
+
+function showAddTaskToColumnModal(targetStatus){ 
+  showAddTaskModal(state.currentTeam, targetStatus); 
+}
+
+function promptAssignMember(team, onAssign, onCancel){
+  const modal=buildModal('Assign Task',(body,close)=>{
+    const options = team.members.map(id=>{
+      const a=state.avatars.find(v=>v.id===id);
+      return `<label class="assign-row"><input type="radio" name="assignee" value="${id}"><span>${a?.name||id}</span></label>`;
+    }).join('') || '<div>No members</div>';
+    body.innerHTML=`
+      <form id="assignForm" class="modal-form">
+        <div class="form-group">
+          <label>Select member</label>
+          <div class="assign-list">${options}</div>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" id="cancelAssign" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Assign</button>
+        </div>
+      </form>`;
+
+    setTimeout(() => {
+const cancelAssignBtn = byId('cancelAssign');
+if(cancelAssignBtn) cancelAssignBtn.onclick=()=>{ close(); onCancel?.(); };
+
+const skipAssignBtn = byId('skipAssign');
+if(skipAssignBtn) skipAssignBtn.onclick=()=>{ close(); onAssign?.(null); };
+
+const assignForm = byId('assignForm');
+if(assignForm) {
+  assignForm.onsubmit=(e)=>{
+          e.preventDefault();
+          const chosen = body.querySelector('input[name="assignee"]:checked')?.value;
+          if(!chosen) return;
+          close();
+          onAssign?.(chosen);
+        };
+      }
+    }, 0);
+  });
+  document.body.appendChild(modal);
+}
+
+function showTaskDetailsModal(task, team){
+  const assignee = state.avatars.find(a=>a.id===task.assigneeId);
+  const dueSection = task.due ? `
+    <div class="task-detail-section">
+      <label class="task-detail-label">Due Date</label>
+      <p class="task-detail-text">${task.due}</p>
+    </div>` : '';
+
+  const modal=buildModal('Task Details',(body,close)=>{
+    body.innerHTML=`
+      <div class="modal-form">
+        <div class="task-detail-header">
+          <h3 class="task-detail-title">${task.title}</h3>
+          <span class="task-detail-status">${prettyStatus(task.status)}</span>
+        </div>
+        <div class="task-detail-section">
+          <label class="task-detail-label">Description</label>
+          <p class="task-detail-text">${task.description || 'No description'}</p>
+        </div>
+        <div class="task-detail-row">
+          <div class="task-detail-section">
+            <label class="task-detail-label">Points</label>
+            <p class="task-detail-text">${task.points || 0}</p>
+          </div>
+          <div class="task-detail-section">
+            <label class="task-detail-label">Priority</label>
+            <p class="task-detail-text">${task.priority || 'medium'}</p>
+          </div>
+        </div>
+        ${dueSection}
+        <div class="task-detail-section">
+          <label class="task-detail-label">Assigned To</label>
+          <p class="task-detail-text">
+            ${assignee ? `${assignee.emoji} ${assignee.name}` : (task.assigneeRole ? `Role: ${task.assigneeRole}` : 'Unassigned')}
+          </p>
+        </div>
+        <div class="modal-buttons">
+          <button id="closeTaskBtn" class="btn btn-secondary">Close</button>
+          <button id="deleteTaskBtn" class="btn btn-danger">Delete Task</button>
+        </div>
+      </div>`;
+
+    setTimeout(() => {
+      const closeBtn = byId('closeTaskBtn'); if(closeBtn) closeBtn.onclick = close;
+      const deleteBtn = byId('deleteTaskBtn');
+      if(deleteBtn){
+        deleteBtn.onclick=()=>{
+          if(confirm(`Are you sure you want to delete "${task.title}"?`)){
+            team.tasks = team.tasks.filter(t => t.id !== task.id);
+            saveCurrentWorkspace();
+            close();
+            renderBoard(team.name);
+            enableDnD(team.name);
+            toast('Task deleted successfully');
+          }
+        };
+      }
+    }, 0);
+  });
+  document.body.appendChild(modal);
+}
+
+function showManageEventsModal(teamName){
+  const team=state.teams[teamName];
+  const modal=buildModal('Manage Point Events',(body,close)=>{
+    const render=()=>{
+      const list=byId('eventsListDyn');
+      if(list) {
+        list.innerHTML = team.events.map(ev=>`
+          <div style="display:flex;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--color-border);border-radius:8px;margin-bottom:6px;">
+            <div><strong>${ev.name}</strong> • ${ev.points} pts</div>
+            <button data-id="${ev.id}" class="btn btn-secondary btn-sm">Delete</button>
+          </div>`).join('') || `<div style="color:#6b7280;">No events yet.</div>`;
+        list.querySelectorAll('button[data-id]').forEach(b=> b.onclick=()=>{
+          const id=b.getAttribute('data-id'); team.events=team.events.filter(e=>e.id!==id); render(); saveCurrentWorkspace();
+        });
+      }
+    };
+    body.innerHTML=`
+      <div class="modal-form">
+        <div id="eventsListDyn" class="events-list" style="margin-bottom:12px;"></div>
+        <h4 style="margin:8px 0 6px 0;">Add New Event</h4>
+        <div class="form-group"><label>Event Name</label><input id="eventName" class="form-control" placeholder="e.g., Complete Code Review"></div>
+        <div class="form-group"><label>Points</label><input id="eventPoints" type="number" class="form-control" min="1" max="500" value="10"></div>
+        <div class="modal-buttons"><button id="cancelEvents" class="btn btn-secondary">Close</button><button id="addEventBtn" class="btn btn-primary">Add Event</button></div>
+      </div>`;
+
+    setTimeout(() => {
+      const cancelEventsBtn = byId('cancelEvents');
+      if(cancelEventsBtn) cancelEventsBtn.onclick=close;
+
+      const addEventBtn = byId('addEventBtn');
+      if(addEventBtn) {
+        addEventBtn.onclick=()=>{
+          const name=byId('eventName')?.value.trim();
+          const pts=Number(byId('eventPoints')?.value)||0;
+          if(!name||pts<=0) return;
+          team.events.push({id:'evt_'+Date.now(),name,points:pts});
+          const eventNameInput = byId('eventName');
+          const eventPointsInput = byId('eventPoints');
+          if(eventNameInput) eventNameInput.value='';
+          if(eventPointsInput) eventPointsInput.value='10';
+          saveCurrentWorkspace();
+          render();
+        };
+      }
+      render();
+    }, 0);
+  });
+  document.body.appendChild(modal);
+}
+
+function showCelebration(points){
+  const o=document.createElement('div'); o.className='celebration-overlay';
+  o.innerHTML = '<div class="celebration-content">'
+    + '<div class="celebration-emoji">🎉</div>'
+    + '<div class="celebration-text">Released!</div>'
+    + '<div class="celebration-points">+' + points + ' pts</div>'
+    + '</div>';
+  document.body.appendChild(o);
+  setTimeout(()=>o.remove(),1200);
+}
+
+window.showAddTaskToColumnModal=showAddTaskToColumnModal;
+
 
 /* ===========================
    Auth Modals
@@ -794,7 +1366,7 @@ function showGlobalSignInModal(){
         </div>
         <div class="modal-buttons">
           <button type="button" id="siCancel" class="btn btn-secondary">Cancel</button>
-          <button type="button" id="siSubmit" class="btn btn-primary">Sign In</button>
+<button type="submit" class="btn btn-primary">Sign In</button>
         </div>
       </form>`;
       
@@ -804,35 +1376,39 @@ function showGlobalSignInModal(){
       
       if(cancelBtn) cancelBtn.onclick = close;
 
-      if(submitBtn) {
-        submitBtn.onclick = async () => {
-          const email = byId('siEmail')?.value.trim();
-          const pass = byId('siPass')?.value;
-          
-          if (!email || !pass) {
-            alert('Please enter both email and password');
-            return;
-          }
-          
-          try{
-            await cloudSignIn(email, pass);
-            const cached = cacheGet(); 
-            if (cached) applyWorkspaceData(cached);
-            
-            await loadWorkspaceFromCloud('default');
-            close();
-            renderPlatformForUser(); 
-            showScreen('platform');
-            toast('Signed in successfully');
-          }catch(err){
-            alert('Sign-in failed: ' + (err?.message || err));
-          }
-        };
-      }
+      const form = byId('globalSignInForm');
+if(form) {
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const email = byId('siEmail')?.value.trim();
+    const pass = byId('siPass')?.value;
+    
+    if (!email || !pass) {
+      alert('Please enter both email and password');
+      return;
+    }
+    
+    try{
+      await cloudSignIn(email, pass);
+      const cached = cacheGet(); 
+      if (cached) applyWorkspaceData(cached);
+      
+      await loadWorkspaceFromCloud('default');
+      close();
+      renderPlatformForUser(); 
+      showScreen('platform');
+      toast('Signed in successfully');
+    }catch(err){
+      alert('Sign-in failed: ' + (err?.message || err));
+    }
+  };
+}   
     },0);
   });
   document.body.appendChild(modal);
 }
+
+
 
 function showEmployeeSignInModal(){
   const modal=buildModal('Employee Sign In',(body,close)=>{
