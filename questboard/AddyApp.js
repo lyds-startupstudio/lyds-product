@@ -565,7 +565,6 @@ if(map) {
 
   renderTeamRooms();
   renderSidebar();
-  updateTeamPointsDisplay();
 
   const createNewAvatarBtn = byId('createNewAvatarBtn');
   const employeeSignInBtn = byId('employeeSignInBtn');
@@ -704,22 +703,37 @@ function renderSidebar(){
           </div>
         </div>`).join('') || `<div class="empty">No employees</div>`;
 
-  list.querySelectorAll('.employee-item').forEach(el=> {
+list.querySelectorAll('.employee-item').forEach(el=> {
   el.onclick=()=>{
     const clickedId = el.dataset.id;
     state.currentUserId = clickedId;
     
-    // Update visual highlights
-    map.querySelectorAll('.user-character').forEach(char => {
-      if(char.id === `char-${clickedId}`) {
-        char.style.outline = '3px solid #4F46E5';
-        char.style.outlineOffset = '2px';
-      } else {
-        char.style.outline = 'none';
-      }
-    });
+    // Update visual highlights on the map
+    const map = byId('officeMap');
+    if(map) {
+      map.querySelectorAll('.user-character').forEach(char => {
+        if(char.id === `char-${clickedId}`) {
+          char.style.outline = '3px solid #4F46E5';
+          char.style.outlineOffset = '2px';
+        } else {
+          char.style.outline = 'none';
+        }
+      });
+    }
     
-    toast(`Now controlling ${state.avatars.find(a=>a.id===clickedId)?.name}`);
+    // Update top nav user display
+    const clickedUser = state.avatars.find(a=>a.id===clickedId);
+    if(clickedUser) {
+      const navUserAvatar = byId('navUserAvatar');
+      const navUserName = byId('navUserName');
+      const navUserRole = byId('navUserRole');
+      
+      if(navUserAvatar) navUserAvatar.textContent = clickedUser.emoji || '•';
+      if(navUserName) navUserName.textContent = clickedUser.name || '';
+      if(navUserRole) navUserRole.textContent = clickedUser.role || '';
+    }
+    
+    toast(`Now controlling ${clickedUser?.name}`);
   };
 
   
