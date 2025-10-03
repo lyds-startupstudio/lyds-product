@@ -515,6 +515,11 @@ if(map) {
   // Remove ALL old characters
   map.querySelectorAll('.user-character').forEach(c => c.remove());
   
+  // Initialize positions for avatars if not set
+  if(!state.office.avatarPositions) {
+    state.office.avatarPositions = {};
+  }
+  
   // Position avatars in a horizontal line below team boxes
   const startX = 60;
   const startY = 500; // Below the teams
@@ -522,12 +527,20 @@ if(map) {
   
   // Create character for each avatar
   state.avatars.forEach((avatar, idx) => {
+    // Set initial position if not exists
+    if(!state.office.avatarPositions[avatar.id]) {
+      state.office.avatarPositions[avatar.id] = {
+        x: startX + idx * spacing,
+        y: startY
+      };
+    }
+    
     const char = document.createElement('div');
     char.id = `char-${avatar.id}`;
     char.className = 'user-character';
     char.style.position = 'absolute';
-    char.style.left = (startX + idx * spacing) + 'px';
-    char.style.top = startY + 'px';
+    char.style.left = state.office.avatarPositions[avatar.id].x + 'px';
+    char.style.top = state.office.avatarPositions[avatar.id].y + 'px';
     
     const ca = document.createElement('div');
     ca.className = 'character-avatar';
@@ -664,18 +677,32 @@ function renderSidebar(){
           </div>
         </div>`).join('') || `<div class="empty">No employees</div>`;
 
-list.querySelectorAll('.employee-item').forEach(el=> {
+  list.querySelectorAll('.employee-item').forEach(el=> {
   el.onclick=()=>{
     const clickedId = el.dataset.id;
     state.currentUserId = clickedId;
-    renderPlatformForUser();
+    
+    // Update visual highlights
+    map.querySelectorAll('.user-character').forEach(char => {
+      if(char.id === `char-${clickedId}`) {
+        char.style.outline = '3px solid #4F46E5';
+        char.style.outlineOffset = '2px';
+      } else {
+        char.style.outline = 'none';
+      }
+    });
+    
     toast(`Now controlling ${state.avatars.find(a=>a.id===clickedId)?.name}`);
   };
+
+  
   el.ondblclick=(e)=>{
     e.stopPropagation();
     openEmployeeProfile(el.dataset.id);
   };
-}); 
+});
+
+
 
 }
   };
@@ -836,6 +863,8 @@ const kd=(e)=>{
     state.office.loopId=requestAnimationFrame(step); 
   };
   step();
+
+
 
   function near(){
     const currentUserId = state.currentUserId;
