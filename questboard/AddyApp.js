@@ -601,12 +601,18 @@ if(map) {
   const signOutBtn = byId('signOutBtn');
   if (signOutBtn) signOutBtn.onclick = signOut;
 
-  const companyEventsBtn = byId('companyEventsBtn');
-  if(companyEventsBtn){
-    companyEventsBtn.style.display = state.workspace.type === 'business' ? 'inline-flex' : 'none';
-    companyEventsBtn.onclick = ()=>showCompanyEventsModal();
+  const topCompanyEventsBtn = byId('topCompanyEventsBtn');
+  if(topCompanyEventsBtn && state.setup && state.setup.teams && state.setup.teams.length > 0) {
+    topCompanyEventsBtn.style.display = 'inline-block';
+    topCompanyEventsBtn.onclick = () => showCompanyEventsSimple();
+  } else if(topCompanyEventsBtn) {
+    topCompanyEventsBtn.style.display = 'none';
   }
-
+  
+  const addCompanyEventBtn = byId('addCompanyEventBtn');
+  if(addCompanyEventBtn) {
+    addCompanyEventBtn.onclick = () => showCompanyEventsSimple();
+  }
   startOfficeControls();
 }
 
@@ -670,6 +676,34 @@ function renderSidebar(){
   
   if(isPersonal) return;
   
+    // Render company events in sidebar
+  const companyEventsList = byId('sidebarCompanyEvents');
+  if(companyEventsList) {
+    if(!state.companyEvents || state.companyEvents.length === 0) {
+      companyEventsList.innerHTML = '<div class="empty">No events yet</div>';
+    } else {
+      companyEventsList.innerHTML = state.companyEvents.map(ev => {
+        const responses = ev.responses || {};
+        const yesCount = Object.values(responses).filter(r => r === 'yes').length;
+        
+        return `
+          <div class="event-item" data-event-id="${ev.id}" style="padding:8px;border:1px solid var(--color-border);border-radius:8px;margin-bottom:6px;cursor:pointer;background:#fff;">
+            <div style="font-weight:600;font-size:13px;margin-bottom:2px;">${ev.name}</div>
+            <div style="font-size:11px;color:#6b7280;">📅 ${ev.date || 'No date'}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:4px;">✅ ${yesCount} attending</div>
+          </div>`;
+      }).join('');
+      
+      // Add click handlers to open event details
+      companyEventsList.querySelectorAll('.event-item').forEach(el => {
+        el.onclick = () => {
+          showCompanyEventsSimple();
+        };
+      });
+    }
+  }
+  
+
   const teamList=byId('sidebarTeamList');
   if(teamList){
     // Calculate percentages for each team
@@ -700,7 +734,6 @@ function renderSidebar(){
   }
 
   const search=byId('employeeSearch'), list=byId('sidebarEmployeeList');
-  
   const refresh=()=>{
     const q=(search?.value||'').toLowerCase();
     const filtered=state.avatars.filter(a=>a.name.toLowerCase().includes(q));
@@ -1051,7 +1084,9 @@ if(topBackBtn) {
   }, 50);
 
   const eventsBtn = byId('teamEventsBtn');
+  const eventsBtnText = byId('teamEventsBtnText');
   if(eventsBtn) eventsBtn.onclick=()=>showTeamEventsModal(teamName);
+  if(eventsBtnText) eventsBtnText.textContent = `${teamName} Events`;
 
 const backBtn = byId('backButton');
 if(backBtn) backBtn.onclick=()=>{ 
@@ -1649,119 +1684,134 @@ function showTeamEventsModal(teamName){
 
 
 
-
-function showCompanyEventsModal(){
-  // Initialize company events array if it doesn't exist
+function showCompanyEventsSimple(){
   if(!state.companyEvents) state.companyEvents = [];
   
   const modal=buildModal('Company Events',(body,close)=>{
     const render=()=>{
-      const list=byId('companyEventsListDyn');
+      const list=byId('companyEventsListSimple');
       if(list) {
-        list.innerHTML = state.companyEvents.map(ev=>{
-          const responses = ev.responses || {};
-          const yesCount = Object.values(responses).filter(r => r === 'yes').length;
-          const noCount = Object.values(responses).filter(r => r === 'no').length;
-          const maybeCount = Object.values(responses).filter(r => r === 'maybe').length;
+        if(state.companyEvents.length === 0) {
+          list.innerHTML = `<div style="color:#6b7280;text-align:center;padding:20px;">No company events yet.</div>`;
+        } else {
+          list.innerHTML = '';
+          state.companyEvents.forEach(ev => {
+            const responses = ev.responses || {};
+            const yesCount = Object.values(responses).filter(r => r === 'yes').length;
+            const noCount = Object.values(responses).filter(r => r === 'no').length;
+            const maybeCount = Object.values(responses).filter(r => r === 'maybe').length;
+            
+            const card = document.createElement('div');
+            card.style.cssText = 'border:1px solid var(--color-border);border-radius:12px;padding:12px;margin-bottom:12px;background:#fff;';
+            
+            card.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+                <div>
+                  <h4 style="margin:0 0 4px 0;font-size:16px;">${ev.name}</h4>
+                  <div style="font-size:12px;color:#6b7280;">📅 ${ev.date || 'No date set'}</div>
+                </div>
+                <button class="btn btn-danger btn-sm delete-company-event-btn" data-event-id="${ev.id}">Delete</button>
+              </div>
+              ${ev.description ? `<p style="margin:8px 0;font-size:14px;color:#374151;">${ev.description}</p>` : ''}
+              ${ev.imageUrl ? `<img src="${ev.imageUrl}" style="max-width:100%;border-radius:8px;margin:8px 0;" alt="Event"/>` : ''}
+              <div style="margin-top:12px;padding-top:12px;border-top:1px solid #eef0f3;">
+                <div style="font-size:13px;font-weight:600;margin-bottom:6px;">Responses:</div>
+                <div style="display:flex;gap:12px;font-size:12px;margin-bottom:8px;">
+                  <span>✅ Yes: ${yesCount}</span>
+                  <span>❌ No: ${noCount}</span>
+                  <span>🤔 Maybe: ${maybeCount}</span>
+                </div>
+                <div style="margin-top:8px;">
+                  <button class="btn btn-sm company-rsvp-btn" data-event-id="${ev.id}" data-response="yes" style="background:#10B981;color:#fff;margin-right:6px;">Yes</button>
+                  <button class="btn btn-sm company-rsvp-btn" data-event-id="${ev.id}" data-response="no" style="background:#EF4444;color:#fff;margin-right:6px;">No</button>
+                  <button class="btn btn-sm company-rsvp-btn" data-event-id="${ev.id}" data-response="maybe" style="background:#F59E0B;color:#fff;">Maybe</button>
+                </div>
+              </div>`;
+            
+            list.appendChild(card);
+          });
           
-          return `
-          <div class="event-card" style="border:1px solid var(--color-border);border-radius:12px;padding:12px;margin-bottom:12px;background:#fff;">
-            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
-              <div>
-                <h4 style="margin:0 0 4px 0;font-size:16px;">${ev.name}</h4>
-                <div style="font-size:12px;color:#6b7280;">📅 ${ev.date || 'No date set'}</div>
-              </div>
-              <button data-id="${ev.id}" class="btn btn-danger btn-sm">Delete</button>
-            </div>
-            ${ev.description ? `<p style="margin:8px 0;font-size:14px;color:#374151;">${ev.description}</p>` : ''}
-            ${ev.imageUrl ? `<img src="${ev.imageUrl}" style="max-width:100%;border-radius:8px;margin:8px 0;" alt="Event flyer"/>` : ''}
-            <div style="margin-top:12px;padding-top:12px;border-top:1px solid #eef0f3;">
-              <div style="font-size:13px;font-weight:600;margin-bottom:6px;">Responses:</div>
-              <div style="display:flex;gap:12px;font-size:12px;">
-                <span>✅ Yes: ${yesCount}</span>
-                <span>❌ No: ${noCount}</span>
-                <span>🤔 Maybe: ${maybeCount}</span>
-              </div>
-              <div style="margin-top:8px;">
-                <button class="btn btn-sm" data-respond="${ev.id}" data-response="yes" style="background:#10B981;color:#fff;margin-right:6px;">Yes</button>
-                <button class="btn btn-sm" data-respond="${ev.id}" data-response="no" style="background:#EF4444;color:#fff;margin-right:6px;">No</button>
-                <button class="btn btn-sm" data-respond="${ev.id}" data-response="maybe" style="background:#F59E0B;color:#fff;">Maybe</button>
-              </div>
-            </div>
-          </div>`;
-        }).join('') || `<div style="color:#6b7280;text-align:center;padding:20px;">No events yet.</div>`;
-        
-        // Delete buttons
-        list.querySelectorAll('button[data-id]').forEach(b=> b.onclick=()=>{
-          const id=b.getAttribute('data-id'); 
-          state.companyEvents=state.companyEvents.filter(e=>e.id!==id); 
-          render(); 
-          saveCurrentWorkspace();
-        });
-        
-        // Response buttons
-        list.querySelectorAll('button[data-respond]').forEach(b=> b.onclick=()=>{
-          const eventId = b.getAttribute('data-respond');
-          const response = b.getAttribute('data-response');
-          const userId = state.currentUserId;
+          list.querySelectorAll('.delete-company-event-btn').forEach(btn => {
+            btn.onclick = () => {
+              const eventId = btn.getAttribute('data-event-id');
+              state.companyEvents = state.companyEvents.filter(e => e.id !== eventId);
+              saveCurrentWorkspace();
+              renderSidebar();
+              render();
+              toast('Event deleted');
+            };
+          });
           
-          const event = state.companyEvents.find(e => e.id === eventId);
-          if(event && userId) {
-            if(!event.responses) event.responses = {};
-            event.responses[userId] = response;
-            saveCurrentWorkspace();
-            render();
-            toast(`Response recorded: ${response}`);
-          }
-        });
-
+          list.querySelectorAll('.company-rsvp-btn').forEach(btn => {
+            btn.onclick = () => {
+              const eventId = btn.getAttribute('data-event-id');
+              const response = btn.getAttribute('data-response');
+              const userId = state.currentUserId;
+              
+              if(!userId) {
+                toast('Please select a user first');
+                return;
+              }
+              
+              const event = state.companyEvents.find(e => e.id === eventId);
+              if(event) {
+                if(!event.responses) event.responses = {};
+                event.responses[userId] = response;
+                saveCurrentWorkspace();
+                renderSidebar();
+                render();
+                toast(`You responded: ${response.toUpperCase()}`);
+              }
+            };
+          });
+        }
       }
     };
     
     body.innerHTML=`
       <div class="modal-form">
-        <div id="companyEventsListDyn" class="events-list" style="margin-bottom:16px;max-height:400px;overflow-y:auto;"></div>
+        <div id="companyEventsListSimple" class="events-list" style="margin-bottom:16px;max-height:400px;overflow-y:auto;"></div>
         
         <div style="border-top:2px solid #eef0f3;padding-top:16px;">
           <h4 style="margin:0 0 12px 0;">Add New Company Event</h4>
           <div class="form-group">
             <label class="form-label">Event Name</label>
-            <input id="companyEventName" class="form-control" placeholder="e.g., Annual Company Party" required/>
+            <input id="companyEventNameSimple" class="form-control" placeholder="e.g., Annual Party" required/>
           </div>
           
           <div class="form-group">
             <label class="form-label">Date</label>
-            <input id="companyEventDate" type="date" class="form-control"/>
+            <input id="companyEventDateSimple" type="date" class="form-control"/>
           </div>
           
           <div class="form-group">
             <label class="form-label">Description</label>
-            <textarea id="companyEventDescription" class="form-control" rows="2" placeholder="Event details..."></textarea>
+            <textarea id="companyEventDescSimple" class="form-control" rows="2" placeholder="Event details..."></textarea>
           </div>
           
           <div class="form-group">
             <label class="form-label">Image URL (optional)</label>
-            <input id="companyEventImage" class="form-control" placeholder="https://example.com/flyer.jpg"/>
+            <input id="companyEventImageSimple" class="form-control" placeholder="https://example.com/flyer.jpg"/>
           </div>
           
           <div class="modal-buttons">
-            <button id="cancelCompanyEvents" class="btn btn-secondary">Close</button>
-            <button id="addCompanyEventBtn" class="btn btn-primary">Add Event</button>
+            <button id="cancelCompanyEventsSimple" class="btn btn-secondary">Close</button>
+            <button id="addCompanyEventBtnSimple" class="btn btn-primary">Add Event</button>
           </div>
         </div>
       </div>`;
 
     setTimeout(() => {
-      const cancelEventsBtn = byId('cancelCompanyEvents');
-      if(cancelEventsBtn) cancelEventsBtn.onclick=close;
+      const cancelBtn = byId('cancelCompanyEventsSimple');
+      if(cancelBtn) cancelBtn.onclick=close;
 
-      const addEventBtn = byId('addCompanyEventBtn');
-      if(addEventBtn) {
-        addEventBtn.onclick=()=>{
-          const name=byId('companyEventName')?.value.trim();
-          const date=byId('companyEventDate')?.value || '';
-          const description=byId('companyEventDescription')?.value.trim() || '';
-          const imageUrl=byId('companyEventImage')?.value.trim() || '';
+      const addBtn = byId('addCompanyEventBtnSimple');
+      if(addBtn) {
+        addBtn.onclick=()=>{
+          const name=byId('companyEventNameSimple')?.value.trim();
+          const date=byId('companyEventDateSimple')?.value || '';
+          const description=byId('companyEventDescSimple')?.value.trim() || '';
+          const imageUrl=byId('companyEventImageSimple')?.value.trim() || '';
           
           if(!name) {
             toast('Please enter event name');
@@ -1777,24 +1827,277 @@ function showCompanyEventsModal(){
             responses: {}
           });
           
-          const eventNameInput = byId('companyEventName');
-          const eventDateInput = byId('companyEventDate');
-          const eventDescInput = byId('companyEventDescription');
-          const eventImgInput = byId('companyEventImage');
-          
-          if(eventNameInput) eventNameInput.value='';
-          if(eventDateInput) eventDateInput.value='';
-          if(eventDescInput) eventDescInput.value='';
-          if(eventImgInput) eventImgInput.value='';
+          byId('companyEventNameSimple').value='';
+          byId('companyEventDateSimple').value='';
+          byId('companyEventDescSimple').value='';
+          byId('companyEventImageSimple').value='';
           
           saveCurrentWorkspace();
+          renderSidebar();
           render();
-          toast('Company event added successfully');
+          toast('Company event added');
         };
       }
       render();
     }, 0);
   });
+  document.body.appendChild(modal);
+}
+
+function showEnhancedCompanyEventsModal(){
+  if(!state.companyEvents) state.companyEvents = [];
+  
+  const modal = buildModal('🎉 Company Events', (body, close) => {
+    const render = () => {
+      body.innerHTML = `
+        <div style="max-height:70vh;overflow-y:auto;">
+          <div id="eventsList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:20px;">
+            ${state.companyEvents.length === 0 ? 
+              '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#6b7280;"><div style="font-size:48px;margin-bottom:12px;">📅</div><div style="font-size:16px;">No events yet. Create your first company event!</div></div>' 
+              : 
+              state.companyEvents.map(ev => {
+                const responses = ev.responses || {};
+                const yesCount = Object.values(responses).filter(r => r === 'yes').length;
+                const noCount = Object.values(responses).filter(r => r === 'no').length;
+                const maybeCount = Object.values(responses).filter(r => r === 'maybe').length;
+                const userResponse = state.currentUserId ? responses[state.currentUserId] : null;
+                
+                return `
+                  <div class="event-card-fancy" data-event-id="${ev.id}" style="border:2px solid #e5e7eb;border-radius:16px;padding:16px;background:linear-gradient(135deg,#f8f9ff 0%,#fff 100%);cursor:pointer;transition:all 0.3s;position:relative;overflow:hidden;">
+                    <div style="position:absolute;top:-20px;right:-20px;font-size:60px;opacity:0.1;">🎊</div>
+                    ${ev.imageUrl ? `<img src="${ev.imageUrl}" style="width:100%;height:150px;object-fit:cover;border-radius:12px;margin-bottom:12px;" alt="${ev.name}"/>` : ''}
+                    <div style="position:relative;">
+                      <h3 style="margin:0 0 8px 0;font-size:18px;font-weight:800;color:#1f2937;">${ev.name}</h3>
+                      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;color:#6b7280;font-size:13px;">
+                        <span>📅</span>
+                        <span>${ev.date || 'Date TBD'}</span>
+                      </div>
+                      ${ev.description ? `<p style="font-size:14px;color:#4b5563;margin:8px 0;line-height:1.5;">${ev.description.substring(0, 80)}${ev.description.length > 80 ? '...' : ''}</p>` : ''}
+                      <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb;">
+                        <div style="display:flex;gap:16px;font-size:12px;margin-bottom:8px;">
+                          <span style="display:flex;align-items:center;gap:4px;"><strong style="color:#10B981;">${yesCount}</strong> ✅</span>
+                          <span style="display:flex;align-items:center;gap:4px;"><strong style="color:#EF4444;">${noCount}</strong> ❌</span>
+                          <span style="display:flex;align-items:center;gap:4px;"><strong style="color:#F59E0B;">${maybeCount}</strong> 🤔</span>
+                        </div>
+                        ${userResponse ? `<div style="font-size:11px;color:#6b7280;background:#f3f4f6;padding:4px 8px;border-radius:6px;display:inline-block;">Your RSVP: <strong>${userResponse.toUpperCase()}</strong></div>` : '<div style="font-size:11px;color:#6b7280;">Click to RSVP</div>'}
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')
+            }
+          </div>
+          
+          <div style="border-top:2px solid #e5e7eb;padding-top:20px;margin-top:20px;">
+            <button id="showAddEventForm" class="btn btn-primary" style="width:100%;padding:12px;font-size:16px;background:linear-gradient(135deg,#4F46E5,#7C3AED);border:none;">
+              ✨ Create New Event
+            </button>
+            
+            <div id="addEventForm" style="display:none;margin-top:16px;padding:20px;background:#f8f9ff;border-radius:12px;">
+              <h4 style="margin:0 0 16px 0;">Create Company Event</h4>
+              <div class="form-group">
+                <label class="form-label">Event Name</label>
+                <input id="newEventName" class="form-control" placeholder="e.g., Summer Party 2025" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Date</label>
+                <input id="newEventDate" type="date" class="form-control" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea id="newEventDesc" class="form-control" rows="3" placeholder="Tell everyone about this amazing event..."></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Image URL (optional)</label>
+                <input id="newEventImage" class="form-control" placeholder="https://example.com/party.jpg" />
+              </div>
+              <div style="display:flex;gap:8px;margin-top:12px;">
+                <button id="cancelAddEvent" class="btn btn-secondary" style="flex:1;">Cancel</button>
+                <button id="submitAddEvent" class="btn btn-primary" style="flex:1;">Create Event</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Event card click handlers
+      body.querySelectorAll('.event-card-fancy').forEach(card => {
+        card.onclick = () => {
+          const eventId = card.getAttribute('data-event-id');
+          showEventDetailModal(eventId);
+        };
+        
+        card.onmouseenter = () => {
+          card.style.transform = 'translateY(-4px)';
+          card.style.boxShadow = '0 12px 24px rgba(0,0,0,0.15)';
+          card.style.borderColor = '#4F46E5';
+        };
+        
+        card.onmouseleave = () => {
+          card.style.transform = 'translateY(0)';
+          card.style.boxShadow = 'none';
+          card.style.borderColor = '#e5e7eb';
+        };
+      });
+      
+      // Show/hide add form
+      const showFormBtn = byId('showAddEventForm');
+      const addForm = byId('addEventForm');
+      const cancelBtn = byId('cancelAddEvent');
+      
+      if(showFormBtn) {
+        showFormBtn.onclick = () => {
+          if(addForm) {
+            addForm.style.display = addForm.style.display === 'none' ? 'block' : 'none';
+            showFormBtn.textContent = addForm.style.display === 'none' ? '✨ Create New Event' : '❌ Cancel';
+          }
+        };
+      }
+      
+      if(cancelBtn) {
+        cancelBtn.onclick = () => {
+          if(addForm) addForm.style.display = 'none';
+          if(showFormBtn) showFormBtn.textContent = '✨ Create New Event';
+        };
+      }
+      
+      // Submit new event
+      const submitBtn = byId('submitAddEvent');
+      if(submitBtn) {
+        submitBtn.onclick = () => {
+          const name = byId('newEventName')?.value.trim();
+          const date = byId('newEventDate')?.value || '';
+          const description = byId('newEventDesc')?.value.trim() || '';
+          const imageUrl = byId('newEventImage')?.value.trim() || '';
+          
+          if(!name) {
+            toast('Please enter an event name');
+            return;
+          }
+          
+          state.companyEvents.push({
+            id: 'evt_' + Date.now(),
+            name,
+            date,
+            description,
+            imageUrl,
+            responses: {}
+          });
+          
+          saveCurrentWorkspace();
+          renderSidebar();
+          render();
+          toast('Event created! 🎉');
+          
+          if(addForm) addForm.style.display = 'none';
+          if(showFormBtn) showFormBtn.textContent = '✨ Create New Event';
+        };
+      }
+    };
+    
+    render();
+  });
+  
+  document.body.appendChild(modal);
+}
+
+function showEventDetailModal(eventId) {
+  const event = state.companyEvents.find(e => e.id === eventId);
+  if(!event) return;
+  
+  const modal = buildModal(event.name, (body, close) => {
+    const render = () => {
+      const responses = event.responses || {};
+      const yesCount = Object.values(responses).filter(r => r === 'yes').length;
+      const noCount = Object.values(responses).filter(r => r === 'no').length;
+      const maybeCount = Object.values(responses).filter(r => r === 'maybe').length;
+      const userId = state.currentUserId;
+      const userResponse = userId ? responses[userId] : null;
+      
+      body.innerHTML = `
+        <div class="modal-form">
+          ${event.imageUrl ? `<img src="${event.imageUrl}" style="width:100%;max-height:200px;object-fit:cover;border-radius:12px;margin-bottom:16px;" alt="${event.name}"/>` : ''}
+          
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;color:#6b7280;">
+            <span style="font-size:20px;">📅</span>
+            <span style="font-size:16px;font-weight:600;">${event.date || 'Date TBD'}</span>
+          </div>
+          
+          ${event.description ? `<p style="font-size:15px;line-height:1.6;color:#374151;margin-bottom:20px;">${event.description}</p>` : ''}
+          
+          <div style="background:#f8f9ff;padding:16px;border-radius:12px;margin-bottom:20px;">
+            <div style="font-weight:700;margin-bottom:12px;font-size:15px;">📊 RSVP Status</div>
+            <div style="display:flex;gap:20px;font-size:14px;">
+              <div style="text-align:center;">
+                <div style="font-size:24px;font-weight:800;color:#10B981;">${yesCount}</div>
+                <div style="color:#6b7280;">✅ Yes</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:24px;font-weight:800;color:#EF4444;">${noCount}</div>
+                <div style="color:#6b7280;">❌ No</div>
+              </div>
+              <div style="text-align:center;">
+                <div style="font-size:24px;font-weight:800;color:#F59E0B;">${maybeCount}</div>
+                <div style="color:#6b7280;">🤔 Maybe</div>
+              </div>
+            </div>
+            ${userResponse ? `<div style="margin-top:12px;text-align:center;font-size:13px;color:#6b7280;">Your response: <strong>${userResponse.toUpperCase()}</strong></div>` : ''}
+          </div>
+          
+          <div style="margin-bottom:20px;">
+            <div style="font-weight:700;margin-bottom:8px;font-size:15px;">Your Response</div>
+            <div style="display:flex;gap:8px;">
+              <button id="rsvpYes" class="btn" style="flex:1;background:#10B981;color:#fff;padding:12px;font-size:15px;${userResponse === 'yes' ? 'border:3px solid #065f46;' : ''}">✅ Yes</button>
+              <button id="rsvpNo" class="btn" style="flex:1;background:#EF4444;color:#fff;padding:12px;font-size:15px;${userResponse === 'no' ? 'border:3px solid #991b1b;' : ''}">❌ No</button>
+              <button id="rsvpMaybe" class="btn" style="flex:1;background:#F59E0B;color:#fff;padding:12px;font-size:15px;${userResponse === 'maybe' ? 'border:3px solid #92400e;' : ''}">🤔 Maybe</button>
+            </div>
+          </div>
+          
+          <div class="modal-buttons">
+            <button id="deleteEvent" class="btn btn-danger">Delete Event</button>
+            <button id="closeEvent" class="btn btn-secondary">Close</button>
+          </div>
+        </div>
+      `;
+      
+      ['yes', 'no', 'maybe'].forEach(response => {
+        const btn = byId(`rsvp${response.charAt(0).toUpperCase() + response.slice(1)}`);
+        if(btn) {
+          btn.onclick = () => {
+            if(!userId) {
+              toast('Please select a user first');
+              return;
+            }
+            if(!event.responses) event.responses = {};
+            event.responses[userId] = response;
+            saveCurrentWorkspace();
+            renderSidebar();
+            render();
+            toast(`Response updated: ${response.toUpperCase()} 🎉`);
+          };
+        }
+      });
+      
+      const deleteBtn = byId('deleteEvent');
+      if(deleteBtn) {
+        deleteBtn.onclick = () => {
+          if(confirm(`Delete "${event.name}"?`)) {
+            state.companyEvents = state.companyEvents.filter(e => e.id !== eventId);
+            saveCurrentWorkspace();
+            renderSidebar();
+            close();
+            toast('Event deleted');
+          }
+        };
+      }
+      
+      const closeBtn = byId('closeEvent');
+      if(closeBtn) closeBtn.onclick = close;
+    };
+    
+    render();
+  });
+  
   document.body.appendChild(modal);
 }
 

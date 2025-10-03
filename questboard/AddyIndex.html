@@ -208,6 +208,7 @@
   <!-- Platform -->
   <div id="platformScreen" class="screen">
     <div class="platform-container">
+
       <header class="top-nav">
 <div class="nav-left">
   <button id="backToPlatform" class="btn-icon" style="display:none;" title="Back">
@@ -226,10 +227,11 @@
           </div>
         </div>
         <div class="nav-right">
+          <button type="button" id="signOutBtn" class="btn btn-secondary">Sign Out</button>
         </div>
+          </header>
 
-        <button type="button" id="signOutBtn" class="btn btn-secondary" style="margin-left:12px;">Sign Out</button>
-      </header>
+
 
       <div id="officeLayout" class="office-layout">
         <div id="officeMap" class="office-map">
@@ -247,6 +249,12 @@
 
         <aside id="sidePanel" class="side-panel">
           <div class="side-section">
+<div class="section-title">🎉 Company Events</div>
+            <button id="addCompanyEventBtn" class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px;">+ Add Event</button>
+            <div id="sidebarCompanyEvents" class="sidebar-list"></div>
+          </div>
+
+          <div class="side-section">
             <div class="section-title">Teams - Leaderboard</div>
             <div id="sidebarTeamList" class="sidebar-list"></div>
           </div>
@@ -261,11 +269,10 @@
         <button type="button" id="createNewAvatarBtn" class="btn btn-secondary">+ Create New Avatar</button>
         <button type="button" id="employeeSignInBtn" class="btn btn-secondary btn-employee-login">Employee Sign In</button>
         <button type="button" id="createTeamBtn" class="btn btn-secondary" style="position:absolute;bottom:70px;right:20px;z-index:101;">+ Create Team</button>
-        <button type="button" id="companyEventsBtn" class="btn btn-secondary" style="position:absolute;bottom:120px;right:20px;z-index:101;">📅 Company Events</button>
       </div>
     </div>
   </div>
-  
+
   <!-- Team Screen -->
   <div id="teamScreen" class="screen">
     <div class="team-container">
@@ -277,7 +284,7 @@
         </div>
         <div class="team-actions">
           <button type="button" id="addTaskHeaderBtn" class="add-task-header-btn">+ Add Task</button>
-          <button type="button" id="teamEventsBtn" class="manage-events-btn">📅 Events Board</button>
+          <button type="button" id="teamEventsBtn" class="manage-events-btn">📅 <span id="teamEventsBtnText">Events Board</span></button>
         </div>
       </header>
 
