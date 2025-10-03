@@ -12,10 +12,12 @@ const state = {
   office: { posX:0, posY:0, speed:3, keys:{}, loopId:null, keydownHandler:null, keyupHandler:null, nearTeam:null },
   ui: { beltPaused:false },
   workspace: { id:null, type:null, login:null },
+  companyEvents: [],
   
   // Temporary avatar data during creation
   tempAvatar: null
 };
+
 
 // ---- Workspace helpers ----
 function buildEmptyWorkspace() {
@@ -31,6 +33,7 @@ function applyWorkspaceData(data) {
   state.setup = JSON.parse(JSON.stringify(d.setup || { userType:null, businessType:null, personalPurpose:null, teams:[], categories:[] }));
   state.avatars = JSON.parse(JSON.stringify(d.avatars || []));
   state.teams = JSON.parse(JSON.stringify(d.teams || {}));
+  state.companyEvents = JSON.parse(JSON.stringify(d.companyEvents || []));
   state.currentUserId = null;
 }
 
@@ -131,7 +134,8 @@ function saveCurrentWorkspace(){
   const data = {
     setup: state.setup,
     avatars: state.avatars,
-    teams: state.teams
+    teams: state.teams,
+    companyEvents: state.companyEvents || []
   };
   store[state.workspace.id] = {
     id: state.workspace.id,
@@ -155,6 +159,7 @@ function hydrateFrom(ws){
   state.setup = JSON.parse(JSON.stringify(ws.data?.setup || { userType:null, businessType:null, personalPurpose:null, teams:[], categories:[] }));
   state.avatars = JSON.parse(JSON.stringify(ws.data?.avatars || []));
   state.teams = JSON.parse(JSON.stringify(ws.data?.teams || {}));
+  state.companyEvents = JSON.parse(JSON.stringify(ws.data?.companyEvents || []));
   state.currentUserId = null;
   state.currentTeam = null;
   state.office = { posX:0, posY:0, speed:3, keys:{}, loopId:null, keydownHandler:null, keyupHandler:null, nearTeam:null };
@@ -595,6 +600,12 @@ if(map) {
   
   const signOutBtn = byId('signOutBtn');
   if (signOutBtn) signOutBtn.onclick = signOut;
+
+  const companyEventsBtn = byId('companyEventsBtn');
+  if(companyEventsBtn){
+    companyEventsBtn.style.display = state.workspace.type === 'business' ? 'inline-flex' : 'none';
+    companyEventsBtn.onclick = ()=>showCompanyEventsModal();
+  }
 
   startOfficeControls();
 }
@@ -1039,8 +1050,8 @@ if(topBackBtn) {
     }
   }, 50);
 
-  const manageBtn = byId('manageEventsBtn');
-  if(manageBtn) manageBtn.onclick=()=>showManageEventsModal(teamName);
+  const eventsBtn = byId('teamEventsBtn');
+  if(eventsBtn) eventsBtn.onclick=()=>showTeamEventsModal(teamName);
 
 const backBtn = byId('backButton');
 if(backBtn) backBtn.onclick=()=>{ 
@@ -1473,29 +1484,125 @@ function showTaskDetailsModal(task, team){
   document.body.appendChild(modal);
 }
 
-function showManageEventsModal(teamName){
+function showTeamEventsModal(teamName){
   const team=state.teams[teamName];
-  const modal=buildModal('Manage Point Events',(body,close)=>{
+  
+  // Initialize events array if it doesn't exist
+  if(!team.events) team.events = [];
+  
+  const modal=buildModal(`${teamName} Events`,(body,close)=>{
     const render=()=>{
       const list=byId('eventsListDyn');
       if(list) {
-        list.innerHTML = team.events.map(ev=>`
-          <div style="display:flex;justify-content:space-between;gap:8px;padding:8px;border:1px solid var(--color-border);border-radius:8px;margin-bottom:6px;">
-            <div><strong>${ev.name}</strong> • ${ev.points} pts</div>
-            <button data-id="${ev.id}" class="btn btn-secondary btn-sm">Delete</button>
-          </div>`).join('') || `<div style="color:#6b7280;">No events yet.</div>`;
-        list.querySelectorAll('button[data-id]').forEach(b=> b.onclick=()=>{
-          const id=b.getAttribute('data-id'); team.events=team.events.filter(e=>e.id!==id); render(); saveCurrentWorkspace();
-        });
+        if(team.events.length === 0) {
+          list.innerHTML = `<div style="color:#6b7280;text-align:center;padding:20px;">No events yet.</div>`;
+        } else {
+          list.innerHTML = '';
+          team.events.forEach(ev => {
+            const responses = ev.responses || {};
+            const yesCount = Object.values(responses).filter(r => r === 'yes').length;
+            const noCount = Object.values(responses).filter(r => r === 'no').length;
+            const maybeCount = Object.values(responses).filter(r => r === 'maybe').length;
+            
+            const card = document.createElement('div');
+            card.className = 'event-card';
+            card.style.cssText = 'border:1px solid var(--color-border);border-radius:12px;padding:12px;margin-bottom:12px;background:#fff;';
+            
+            card.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+                <div>
+                  <h4 style="margin:0 0 4px 0;font-size:16px;">${ev.name}</h4>
+                  <div style="font-size:12px;color:#6b7280;">📅 ${ev.date || 'No date set'}</div>
+                </div>
+                <button class="btn btn-danger btn-sm delete-event-btn" data-event-id="${ev.id}">Delete</button>
+              </div>
+              ${ev.description ? `<p style="margin:8px 0;font-size:14px;color:#374151;">${ev.description}</p>` : ''}
+              ${ev.imageUrl ? `<img src="${ev.imageUrl}" style="max-width:100%;border-radius:8px;margin:8px 0;" alt="Event flyer"/>` : ''}
+              <div style="margin-top:12px;padding-top:12px;border-top:1px solid #eef0f3;">
+                <div style="font-size:13px;font-weight:600;margin-bottom:6px;">Responses:</div>
+                <div style="display:flex;gap:12px;font-size:12px;margin-bottom:8px;">
+                  <span>✅ Yes: ${yesCount}</span>
+                  <span>❌ No: ${noCount}</span>
+                  <span>🤔 Maybe: ${maybeCount}</span>
+                </div>
+                <div style="margin-top:8px;">
+                  <button class="btn btn-sm rsvp-btn" data-event-id="${ev.id}" data-response="yes" style="background:#10B981;color:#fff;margin-right:6px;">Yes</button>
+                  <button class="btn btn-sm rsvp-btn" data-event-id="${ev.id}" data-response="no" style="background:#EF4444;color:#fff;margin-right:6px;">No</button>
+                  <button class="btn btn-sm rsvp-btn" data-event-id="${ev.id}" data-response="maybe" style="background:#F59E0B;color:#fff;">Maybe</button>
+                </div>
+              </div>`;
+            
+            list.appendChild(card);
+          });
+          
+          // Attach delete handlers
+          list.querySelectorAll('.delete-event-btn').forEach(btn => {
+            btn.onclick = () => {
+              const eventId = btn.getAttribute('data-event-id');
+              team.events = team.events.filter(e => e.id !== eventId);
+              saveCurrentWorkspace();
+              render();
+              toast('Event deleted');
+            };
+          });
+          
+          // Attach RSVP handlers
+          list.querySelectorAll('.rsvp-btn').forEach(btn => {
+            btn.onclick = () => {
+              const eventId = btn.getAttribute('data-event-id');
+              const response = btn.getAttribute('data-response');
+              const userId = state.currentUserId;
+              
+              if(!userId) {
+                toast('Please select a user first');
+                return;
+              }
+              
+              const event = team.events.find(e => e.id === eventId);
+              if(event) {
+                if(!event.responses) event.responses = {};
+                event.responses[userId] = response;
+                saveCurrentWorkspace();
+                render();
+                toast(`You responded: ${response.toUpperCase()}`);
+              }
+            };
+          });
+        }
       }
     };
+    
     body.innerHTML=`
       <div class="modal-form">
-        <div id="eventsListDyn" class="events-list" style="margin-bottom:12px;"></div>
-        <h4 style="margin:8px 0 6px 0;">Add New Event</h4>
-        <div class="form-group"><label>Event Name</label><input id="eventName" class="form-control" placeholder="e.g., Complete Code Review"></div>
-        <div class="form-group"><label>Points</label><input id="eventPoints" type="number" class="form-control" min="1" max="500" value="10"></div>
-        <div class="modal-buttons"><button id="cancelEvents" class="btn btn-secondary">Close</button><button id="addEventBtn" class="btn btn-primary">Add Event</button></div>
+        <div id="eventsListDyn" class="events-list" style="margin-bottom:16px;max-height:400px;overflow-y:auto;"></div>
+        
+        <div style="border-top:2px solid #eef0f3;padding-top:16px;">
+          <h4 style="margin:0 0 12px 0;">Add New Event</h4>
+          <div class="form-group">
+            <label class="form-label">Event Name</label>
+            <input id="eventName" class="form-control" placeholder="e.g., Team Building Day" required/>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input id="eventDate" type="date" class="form-control"/>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea id="eventDescription" class="form-control" rows="2" placeholder="Event details..."></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Image URL (optional)</label>
+            <input id="eventImage" class="form-control" placeholder="https://example.com/flyer.jpg"/>
+          </div>
+          
+          <div class="modal-buttons">
+            <button id="cancelEvents" class="btn btn-secondary">Close</button>
+            <button id="addEventBtn" class="btn btn-primary">Add Event</button>
+          </div>
+        </div>
       </div>`;
 
     setTimeout(() => {
@@ -1506,15 +1613,32 @@ function showManageEventsModal(teamName){
       if(addEventBtn) {
         addEventBtn.onclick=()=>{
           const name=byId('eventName')?.value.trim();
-          const pts=Number(byId('eventPoints')?.value)||0;
-          if(!name||pts<=0) return;
-          team.events.push({id:'evt_'+Date.now(),name,points:pts});
-          const eventNameInput = byId('eventName');
-          const eventPointsInput = byId('eventPoints');
-          if(eventNameInput) eventNameInput.value='';
-          if(eventPointsInput) eventPointsInput.value='10';
+          const date=byId('eventDate')?.value || '';
+          const description=byId('eventDescription')?.value.trim() || '';
+          const imageUrl=byId('eventImage')?.value.trim() || '';
+          
+          if(!name) {
+            toast('Please enter event name');
+            return;
+          }
+          
+          team.events.push({
+            id:'evt_'+Date.now(),
+            name,
+            date,
+            description,
+            imageUrl,
+            responses: {}
+          });
+          
+          byId('eventName').value='';
+          byId('eventDate').value='';
+          byId('eventDescription').value='';
+          byId('eventImage').value='';
+          
           saveCurrentWorkspace();
           render();
+          toast('Event added successfully');
         };
       }
       render();
@@ -1522,6 +1646,158 @@ function showManageEventsModal(teamName){
   });
   document.body.appendChild(modal);
 }
+
+
+
+
+function showCompanyEventsModal(){
+  // Initialize company events array if it doesn't exist
+  if(!state.companyEvents) state.companyEvents = [];
+  
+  const modal=buildModal('Company Events',(body,close)=>{
+    const render=()=>{
+      const list=byId('companyEventsListDyn');
+      if(list) {
+        list.innerHTML = state.companyEvents.map(ev=>{
+          const responses = ev.responses || {};
+          const yesCount = Object.values(responses).filter(r => r === 'yes').length;
+          const noCount = Object.values(responses).filter(r => r === 'no').length;
+          const maybeCount = Object.values(responses).filter(r => r === 'maybe').length;
+          
+          return `
+          <div class="event-card" style="border:1px solid var(--color-border);border-radius:12px;padding:12px;margin-bottom:12px;background:#fff;">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+              <div>
+                <h4 style="margin:0 0 4px 0;font-size:16px;">${ev.name}</h4>
+                <div style="font-size:12px;color:#6b7280;">📅 ${ev.date || 'No date set'}</div>
+              </div>
+              <button data-id="${ev.id}" class="btn btn-danger btn-sm">Delete</button>
+            </div>
+            ${ev.description ? `<p style="margin:8px 0;font-size:14px;color:#374151;">${ev.description}</p>` : ''}
+            ${ev.imageUrl ? `<img src="${ev.imageUrl}" style="max-width:100%;border-radius:8px;margin:8px 0;" alt="Event flyer"/>` : ''}
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid #eef0f3;">
+              <div style="font-size:13px;font-weight:600;margin-bottom:6px;">Responses:</div>
+              <div style="display:flex;gap:12px;font-size:12px;">
+                <span>✅ Yes: ${yesCount}</span>
+                <span>❌ No: ${noCount}</span>
+                <span>🤔 Maybe: ${maybeCount}</span>
+              </div>
+              <div style="margin-top:8px;">
+                <button class="btn btn-sm" data-respond="${ev.id}" data-response="yes" style="background:#10B981;color:#fff;margin-right:6px;">Yes</button>
+                <button class="btn btn-sm" data-respond="${ev.id}" data-response="no" style="background:#EF4444;color:#fff;margin-right:6px;">No</button>
+                <button class="btn btn-sm" data-respond="${ev.id}" data-response="maybe" style="background:#F59E0B;color:#fff;">Maybe</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('') || `<div style="color:#6b7280;text-align:center;padding:20px;">No events yet.</div>`;
+        
+        // Delete buttons
+        list.querySelectorAll('button[data-id]').forEach(b=> b.onclick=()=>{
+          const id=b.getAttribute('data-id'); 
+          state.companyEvents=state.companyEvents.filter(e=>e.id!==id); 
+          render(); 
+          saveCurrentWorkspace();
+        });
+        
+        // Response buttons
+        list.querySelectorAll('button[data-respond]').forEach(b=> b.onclick=()=>{
+          const eventId = b.getAttribute('data-respond');
+          const response = b.getAttribute('data-response');
+          const userId = state.currentUserId;
+          
+          const event = state.companyEvents.find(e => e.id === eventId);
+          if(event && userId) {
+            if(!event.responses) event.responses = {};
+            event.responses[userId] = response;
+            saveCurrentWorkspace();
+            render();
+            toast(`Response recorded: ${response}`);
+          }
+        });
+
+      }
+    };
+    
+    body.innerHTML=`
+      <div class="modal-form">
+        <div id="companyEventsListDyn" class="events-list" style="margin-bottom:16px;max-height:400px;overflow-y:auto;"></div>
+        
+        <div style="border-top:2px solid #eef0f3;padding-top:16px;">
+          <h4 style="margin:0 0 12px 0;">Add New Company Event</h4>
+          <div class="form-group">
+            <label class="form-label">Event Name</label>
+            <input id="companyEventName" class="form-control" placeholder="e.g., Annual Company Party" required/>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input id="companyEventDate" type="date" class="form-control"/>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea id="companyEventDescription" class="form-control" rows="2" placeholder="Event details..."></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Image URL (optional)</label>
+            <input id="companyEventImage" class="form-control" placeholder="https://example.com/flyer.jpg"/>
+          </div>
+          
+          <div class="modal-buttons">
+            <button id="cancelCompanyEvents" class="btn btn-secondary">Close</button>
+            <button id="addCompanyEventBtn" class="btn btn-primary">Add Event</button>
+          </div>
+        </div>
+      </div>`;
+
+    setTimeout(() => {
+      const cancelEventsBtn = byId('cancelCompanyEvents');
+      if(cancelEventsBtn) cancelEventsBtn.onclick=close;
+
+      const addEventBtn = byId('addCompanyEventBtn');
+      if(addEventBtn) {
+        addEventBtn.onclick=()=>{
+          const name=byId('companyEventName')?.value.trim();
+          const date=byId('companyEventDate')?.value || '';
+          const description=byId('companyEventDescription')?.value.trim() || '';
+          const imageUrl=byId('companyEventImage')?.value.trim() || '';
+          
+          if(!name) {
+            toast('Please enter event name');
+            return;
+          }
+          
+          state.companyEvents.push({
+            id:'evt_'+Date.now(),
+            name,
+            date,
+            description,
+            imageUrl,
+            responses: {}
+          });
+          
+          const eventNameInput = byId('companyEventName');
+          const eventDateInput = byId('companyEventDate');
+          const eventDescInput = byId('companyEventDescription');
+          const eventImgInput = byId('companyEventImage');
+          
+          if(eventNameInput) eventNameInput.value='';
+          if(eventDateInput) eventDateInput.value='';
+          if(eventDescInput) eventDescInput.value='';
+          if(eventImgInput) eventImgInput.value='';
+          
+          saveCurrentWorkspace();
+          render();
+          toast('Company event added successfully');
+        };
+      }
+      render();
+    }, 0);
+  });
+  document.body.appendChild(modal);
+}
+
 
 function showCelebration(points){
   const o=document.createElement('div'); o.className='celebration-overlay';
