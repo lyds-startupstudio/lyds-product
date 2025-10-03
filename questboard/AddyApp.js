@@ -630,8 +630,9 @@ function renderTeamRooms(){
     el.dataset.team=item;
     el.style.borderColor=['#4F46E5','#10B981','#F59E0B','#EF4444','#6366F1','#06B6D4'][i%6];
     
+    // Calculate completion percentage
     const title=Object.assign(document.createElement('div'),{className:'room-header',textContent:item});
-    const members=Object.assign(document.createElement('div'),{className:'room-members'});
+     const members=Object.assign(document.createElement('div'),{className:'room-members'});
     
 if(!isPersonal && state.teams[item]) {
   // Don't show avatars in team boxes
@@ -645,7 +646,9 @@ const enter=Object.assign(document.createElement('div'),{className:'room-enter',
     el.onclick=()=>openTeam(item);
     c.appendChild(el);
   });
+
 }
+
 
 function renderSidebar(){
   const isPersonal = state.workspace.type === 'personal';
@@ -659,11 +662,35 @@ function renderSidebar(){
   
   const teamList=byId('sidebarTeamList');
   if(teamList){
-    teamList.innerHTML = state.setup.teams.map(t=>`<div class="team-item" data-team="${t}">${t}</div>`).join('') || `<div class="empty">No teams yet</div>`;
+    // Calculate percentages for each team
+    const teamsWithPercentage = state.setup.teams.map(t => {
+      let percentage = 0;
+      if(state.teams[t]) {
+        const teamTasks = state.teams[t].tasks || [];
+        const totalTasks = teamTasks.filter(task => task.status !== 'backlog').length;
+        const doneTasks = teamTasks.filter(task => task.status === 'done').length;
+        if(totalTasks > 0) {
+          percentage = Math.round((doneTasks / totalTasks) * 100);
+        }
+      }
+      return { name: t, percentage };
+    });
+    
+    // Sort by percentage (highest first)
+    teamsWithPercentage.sort((a, b) => b.percentage - a.percentage);
+    
+    teamList.innerHTML = teamsWithPercentage.map(t=>
+      `<div class="team-item" data-team="${t.name}">
+        <span>${t.name}</span>
+        <span class="team-percentage">${t.percentage}%</span>
+      </div>`
+    ).join('') || `<div class="empty">No teams yet</div>`;
+    
     teamList.querySelectorAll('.team-item').forEach(el=> el.onclick=()=>openTeam(el.dataset.team));
   }
 
   const search=byId('employeeSearch'), list=byId('sidebarEmployeeList');
+  
   const refresh=()=>{
     const q=(search?.value||'').toLowerCase();
     const filtered=state.avatars.filter(a=>a.name.toLowerCase().includes(q));
@@ -966,10 +993,19 @@ if(topBackBtn) {
     team.members.forEach(id=>{
       const a=state.avatars.find(v=>v.id===id);
       if(!a) return;
+      
+      // Calculate individual points from completed tasks
+      let individualPoints = 0;
+      const userCompletedTasks = team.tasks.filter(
+        task => task.status === 'done' && task.assigneeId === a.id
+      );
+      individualPoints = userCompletedTasks.reduce((sum, task) => sum + (task.points || 0), 0);
+      
       const card=document.createElement('div'); card.className='team-member';
       const av=document.createElement('div'); av.className='member-avatar'; av.textContent=a.emoji;
       const info=document.createElement('div'); info.className='member-info';
-      const nm=document.createElement('div'); nm.className='member-name'; nm.textContent=a.name+(isLead(a)?' ⭐':'');
+      const nm=document.createElement('div'); nm.className='member-name'; 
+      nm.textContent=a.name+(isLead(a)?' ⭐':'')+(individualPoints > 0 ? ' • '+individualPoints+' pts' : '');
       const rl=document.createElement('div'); rl.className='member-role'; rl.textContent=a.role;
       info.append(nm,rl); card.append(av,info); list.appendChild(card);
     });
@@ -1160,6 +1196,8 @@ function enableDnD(teamName){
       const taskId=ev.dataTransfer?.getData('text/task-id'); const task=team.tasks.find(t=>t.id===taskId); if(!task) return;
       const prev = task.status;
 
+
+
       if(prev==='waiting' && status==='done' && !isLeadUser){ toast('Only Team Lead can approve to Done.'); return; }
 
 if(status==='todo' && !task.assigneeId && !isPersonal && team.members.length > 0){
@@ -1182,9 +1220,17 @@ if(status==='todo' && !task.assigneeId && !isPersonal && team.members.length > 0
       }
 
       task.status=status;
+      
+      // Show celebration when moved to done
+      if(status==='done' && prev!=='done'){
+        showCelebration(task.points||0);
+      }
+      
       saveCurrentWorkspace();
       renderBoard(teamName);
       enableDnD(teamName);
+
+
     };
   });
 
@@ -1466,12 +1512,24 @@ function showManageEventsModal(teamName){
 function showCelebration(points){
   const o=document.createElement('div'); o.className='celebration-overlay';
   o.innerHTML = '<div class="celebration-content">'
-    + '<div class="celebration-emoji">🎉</div>'
-    + '<div class="celebration-text">Released!</div>'
+    + '<div class="celebration-text">Task Completed!</div>'
     + '<div class="celebration-points">+' + points + ' pts</div>'
     + '</div>';
+  
+  // Add fireworks
+  for(let i = 0; i < 6; i++) {
+    setTimeout(() => {
+      const firework = document.createElement('div');
+      firework.className = 'firework';
+      firework.style.left = (20 + Math.random() * 60) + '%';
+      firework.style.top = (20 + Math.random() * 60) + '%';
+      o.appendChild(firework);
+      setTimeout(() => firework.remove(), 1000);
+    }, i * 200);
+  }
+  
   document.body.appendChild(o);
-  setTimeout(()=>o.remove(),1200);
+  setTimeout(()=>o.remove(),2000);
 }
 
 window.showAddTaskToColumnModal=showAddTaskToColumnModal;

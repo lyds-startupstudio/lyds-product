@@ -98,8 +98,11 @@ html,body{margin:0;padding:0;font-family:var(--font);color:var(--color-slate-900
 .side-section{background:#fff;border:1px solid var(--color-border);border-radius:16px;padding:12px;box-shadow:var(--shadow-sm)}
 .section-title{font-weight:800;font-size:14px;margin-bottom:8px}
 .sidebar-list{display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto}
-.team-item{padding:8px 10px;border-radius:10px;background:#f3f4f6;cursor:pointer}
+
+.team-item{padding:8px 10px;border-radius:10px;background:#f3f4f6;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
 .team-item:hover{background:#e5e7eb}
+.team-percentage{font-weight:800;color:#4F46E5;font-size:14px}
+
 .employee-item{display:flex;gap:10px;align-items:center;padding:8px;border-radius:12px;border:1px solid transparent;cursor:pointer}
 .employee-item:hover{background:#f9fafb;border-color:var(--color-border)}
 .emp-avatar{width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;background:#eef2ff;font-size:16px}
@@ -107,6 +110,7 @@ html,body{margin:0;padding:0;font-family:var(--font);color:var(--color-slate-900
 .emp-name{font-weight:700;font-size:13px}
 .emp-meta{font-size:12px;color:#6b7280}
 .lead-star{font-size:12px}
+.emp-points{font-size:11px;color:#10B981;font-weight:700;margin-left:6px}
 
 /* floating buttons in office */
 #createNewAvatarBtn{position:absolute;bottom:20px;right:20px;z-index:101}
@@ -204,11 +208,21 @@ html,body{margin:0;padding:0;font-family:var(--font);color:var(--color-slate-900
 .small-hint{margin-top:6px;font-size:12px;color:#6b7280}
 
 /* Celebration overlay */
-.celebration-overlay{position:fixed;inset:0;background:rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;z-index:3000;animation:modalFade .12s}
-.celebration-content{background:#fff;border-radius:18px;padding:18px 22px;box-shadow:0 20px 60px rgba(0,0,0,.18);text-align:center}
-.celebration-emoji{font-size:40px}
-.celebration-text{font-weight:800;margin-top:6px}
-.celebration-points{margin-top:4px;font-weight:800;color:#10B981}
+.celebration-overlay{position:fixed;inset:0;background:rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;z-index:3000;animation:modalFade .12s;overflow:hidden}
+.celebration-content{background:#fff;border-radius:18px;padding:28px 32px;box-shadow:0 20px 60px rgba(0,0,0,.18);text-align:center;position:relative;z-index:3001}
+.celebration-text{font-weight:800;font-size:24px;color:#4F46E5;margin-bottom:12px}
+.celebration-points{font-weight:800;font-size:32px;color:#10B981}
+
+/* Fireworks animation */
+.firework{position:absolute;width:8px;height:8px;border-radius:50%;animation:explode 1s ease-out forwards;z-index:3000}
+.firework::before,.firework::after{content:'';position:absolute;width:100%;height:100%;border-radius:50%}
+
+@keyframes explode{
+  0%{transform:scale(0);opacity:1;box-shadow:0 0 0 0 #F59E0B,0 0 0 0 #EF4444,0 0 0 0 #10B981,0 0 0 0 #3B82F6,0 0 0 0 #8B5CF6,0 0 0 0 #EC4899}
+  50%{opacity:1}
+  100%{transform:scale(8);opacity:0;box-shadow:60px 0 20px 8px #F59E0B,-60px 0 20px 8px #EF4444,0 60px 20px 8px #10B981,0 -60px 20px 8px #3B82F6,40px 40px 20px 8px #8B5CF6,-40px -40px 20px 8px #EC4899}
+
+}
 
 /* Utilities / states */
 .empty{color:#9aa1a6;font-size:13px}
