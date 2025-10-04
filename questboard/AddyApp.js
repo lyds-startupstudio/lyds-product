@@ -1045,7 +1045,35 @@ if(topBackBtn) {
 }
   const tn = byId('teamName'); if(tn) tn.textContent=teamName;
 
+  // Render team events (same as company events in sidebar)
+  const eventsSection = byId('teamEventsSection');
+  if(eventsSection) {
+    if(!team.events || team.events.length === 0) {
+      eventsSection.innerHTML = '<div class="empty">No events yet</div>';
+    } else {
+      eventsSection.innerHTML = team.events.map(ev => {
+        const responses = ev.responses || {};
+        const yesCount = Object.values(responses).filter(r => r === 'yes').length;
+        
+        return `
+          <div class="event-item" data-event-id="${ev.id}" style="padding:8px;border:1px solid var(--color-border);border-radius:8px;margin-bottom:6px;cursor:pointer;background:#fff;">
+            <div style="font-weight:600;font-size:13px;margin-bottom:2px;">${ev.name}</div>
+            <div style="font-size:11px;color:#6b7280;">📅 ${ev.date || 'No date'}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:4px;">✅ ${yesCount} attending</div>
+          </div>`;
+      }).join('');
+      
+      // Add click handlers to open event details
+      eventsSection.querySelectorAll('.event-item').forEach(el => {
+        el.onclick = () => {
+          showTeamEventsModal(teamName);
+        };
+      });
+    }
+  }
+
   const list=byId('teamMembersList');
+
   if (list) {
     list.innerHTML='';
     team.members.forEach(id=>{
@@ -1790,8 +1818,9 @@ function showCompanyEventsSimple(){
           </div>
           
           <div class="form-group">
-            <label class="form-label">Image URL (optional)</label>
-            <input id="companyEventImageSimple" class="form-control" placeholder="https://example.com/flyer.jpg"/>
+            <label class="form-label">Add invitation flyer (optional)</label>
+            <input id="companyEventImageSimple" class="form-control" placeholder="Paste image URL (e.g., from imgur.com)"/>
+            <div style="font-size:11px;color:#6b7280;margin-top:4px;">Upload your flyer to imgur.com or similar, then paste the link here</div>
           </div>
           
           <div class="modal-buttons">
@@ -2359,7 +2388,7 @@ window.handleCategoryInput=handleCategoryInput;
     try{ saveLocal(); }catch(e){ console.warn("Local save error", e); }
     if(SUPA_ON){
       try{
-        await saveWorkspaceToCloud({ setup: state.setup, avatars: state.avatars, teams: state.teams }, currentWorkspaceName);
+        await saveWorkspaceToCloud({ setup: state.setup, avatars: state.avatars, teams: state.teams, companyEvents: state.companyEvents }, currentWorkspaceName);
       }catch(e){
         console.warn("Cloud save failed:", e?.message||e);
       }
