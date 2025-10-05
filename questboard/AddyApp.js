@@ -575,10 +575,13 @@ if(map) {
   const employeeSignInBtn = byId('employeeSignInBtn');
   const createTeamBtn = byId('createTeamBtn');
 
+  const signOutEmployeeBtn = byId('signOutEmployeeBtn');
+  
   if(state.workspace.type==='personal'){
     if(createNewAvatarBtn) createNewAvatarBtn.style.display='none';
     if(employeeSignInBtn) employeeSignInBtn.style.display='none';
     if(createTeamBtn) createTeamBtn.style.display='none';
+    if(signOutEmployeeBtn) signOutEmployeeBtn.style.display='none';
   }else{
     if(createNewAvatarBtn){
       createNewAvatarBtn.style.display='inline-flex';
@@ -589,8 +592,14 @@ if(map) {
       };
     }
     if(employeeSignInBtn){
-      employeeSignInBtn.style.display='inline-flex';
+      // Show "Sign In" only if NOT logged in as employee
+      employeeSignInBtn.style.display = state.currentUserId ? 'none' : 'inline-flex';
       employeeSignInBtn.onclick=()=>showEmployeeSignInModal();
+    }
+    if(signOutEmployeeBtn){
+      // Show "Sign Out Employee" only if logged in as employee
+      signOutEmployeeBtn.style.display = state.currentUserId ? 'inline-flex' : 'none';
+      signOutEmployeeBtn.onclick=()=>signOutEmployee();
     }
     if(createTeamBtn){
       createTeamBtn.style.display='inline-flex';
@@ -749,45 +758,9 @@ function renderSidebar(){
 
 list.querySelectorAll('.employee-item').forEach(el=> {
   el.onclick=()=>{
-    const clickedId = el.dataset.id;
-    state.currentUserId = clickedId;
-    
-    // Update visual highlights on the map
-    const map = byId('officeMap');
-    if(map) {
-      map.querySelectorAll('.user-character').forEach(char => {
-        if(char.id === `char-${clickedId}`) {
-          char.style.outline = '3px solid #4F46E5';
-          char.style.outlineOffset = '2px';
-        } else {
-          char.style.outline = 'none';
-        }
-      });
-    }
-    
-    // Update top nav user display
-    const clickedUser = state.avatars.find(a=>a.id===clickedId);
-    if(clickedUser) {
-      const navUserAvatar = byId('navUserAvatar');
-      const navUserName = byId('navUserName');
-      const navUserRole = byId('navUserRole');
-      
-      if(navUserAvatar) navUserAvatar.textContent = clickedUser.emoji || '•';
-      if(navUserName) navUserName.textContent = clickedUser.name || '';
-      if(navUserRole) navUserRole.textContent = clickedUser.role || '';
-    }
-    
-    toast(`Now controlling ${clickedUser?.name}`);
-  };
-
-  
-  el.ondblclick=(e)=>{
-    e.stopPropagation();
     openEmployeeProfile(el.dataset.id);
   };
 });
-
-
 
 }
   };
@@ -803,13 +776,260 @@ function isLead(avatar){
   return !!(byIdLead || isByRole);
 }
 
+function getTeamLead(teamName) {
+  const team = state.teams[teamName];
+  if(!team || !team.leadId) return null;
+  return state.avatars.find(a => a.id === team.leadId);
+}
+
+function isTeamLeadOf(userId, teamName) {
+  const team = state.teams[teamName];
+  if(!team) return false;
+  return team.leadId === userId;
+}
+
+function canEditEmployee(editorId, targetId) {
+  // Can always edit yourself
+  if(editorId === targetId) return true;
+  
+  const editor = state.avatars.find(a => a.id === editorId);
+  const target = state.avatars.find(a => a.id === targetId);
+  
+  if(!editor || !target) return false;
+  
+  // If target has no team, anyone can edit themselves only
+  if(!target.team) return editorId === targetId;
+  
+  // Team lead can edit members of their team
+  return isTeamLeadOf(editorId, target.team);
+}
+
+function canManageTasks(userId, teamName) {
+  const team = state.teams[teamName];
+  if(!team) return false;
+  
+  // If no permissions set, only team lead can manage
+  if(!team.taskPermissions) {
+    return isTeamLeadOf(userId, teamName);
+  }
+  
+  const perms = team.taskPermissions;
+  
+  // All employees can manage
+  if(perms.type === 'all') return true;
+  
+  // Specific teams/users
+  if(perms.type === 'specific') {
+    const user = state.avatars.find(a => a.id === userId);
+    if(!user || !user.team) return false;
+    
+    // Check if user's team is allowed
+    const teamAllowed = perms.allowedTeams?.includes(user.team);
+    if(!teamAllowed) return false;
+    
+    // Check if all members or specific user
+    const teamPerms = perms.teamMembers?.[user.team];
+    if(!teamPerms) return false;
+    
+    if(teamPerms === 'all') return true;
+    if(Array.isArray(teamPerms)) return teamPerms.includes(userId);
+  }
+  
+  return false;
+}
+
+// פותח מודל לניהול ההרשאות של צוות
+function showTeamPermissionsModal(teamName) {
+  const team = state.teams?.[teamName];
+  const currentUser = getCurrentUser?.();
+
+  if (!team) { toast('Team not found'); return; }
+  if (!currentUser || !isTeamLeadOf?.(currentUser.id, teamName)) {
+    toast('Only the team leader can manage permissions');
+    return;
+  }
+
+  // ודא שיש אובייקט הרשאות צוותי (לא לשבור שמות שדות קיימים)
+  team.taskPermissions = team.taskPermissions || {
+    type: 'all',         // 'all' | 'specific'
+    teams: [],           // שמות צוותים מורשים
+    membersByTeam: {}    // { teamName: [memberIds] }
+  };
+
+  const modal = buildModal('Task Management Permissions', (body, close) => {
+
+    const renderTeamCheckboxes = () => {
+      const box = body.querySelector('#teamCheckboxes');
+      if (!box) return;
+
+      const teamNames = Object.keys(state.teams || {});
+      box.innerHTML = teamNames.map(tn => {
+        const checked = team.taskPermissions.teams.includes(tn) ? 'checked' : '';
+        return `
+          <label class="perm-chip">
+            <input type="checkbox" class="team-checkbox" data-team="${tn}" ${checked}>
+            <span>${tn}</span>
+          </label>
+        `;
+      }).join('') || `<div class="muted">No teams found</div>`;
+    };
+
+    const renderMemberSelections = () => {
+      const wrap = body.querySelector('#memberSelections');
+      const teamBoxes = body.querySelector('#teamCheckboxes');
+      if (!wrap || !teamBoxes) return;
+
+      const selectedTeams = Array.from(
+        teamBoxes.querySelectorAll('.team-checkbox:checked')
+      ).map(cb => cb.dataset.team);
+
+      wrap.innerHTML = selectedTeams.map(tn => {
+        const t = state.teams[tn];
+        if (!t || !Array.isArray(t.members)) return '';
+        const chosen = team.taskPermissions.membersByTeam[tn] || [];
+        const membersHtml = t.members.map(m => {
+          const isChecked = chosen.includes(m.id) ? 'checked' : '';
+          const role = m.role ? ` · ${m.role}` : '';
+          return `
+            <label class="member-chip">
+              <input type="checkbox" class="member-checkbox" data-team="${tn}" data-member="${m.id}" ${isChecked}>
+              <span>${m.name}${role}</span>
+            </label>
+          `;
+        }).join('') || `<div class="muted">No members in ${tn}</div>`;
+
+        return `
+          <div class="team-members-group">
+            <div class="group-title">${tn}</div>
+            <div class="chips-row">${membersHtml}</div>
+          </div>
+        `;
+      }).join('') || `<div class="muted">Select at least one team to choose members</div>`;
+    };
+
+    const render = () => {
+      body.innerHTML = `
+        <div class="perm-modal">
+          <div class="field">
+            <label for="permType" class="label">Permission scope</label>
+            <select id="permType" class="select">
+              <option value="all" ${team.taskPermissions.type === 'all' ? 'selected' : ''}>All team members can manage tasks</option>
+              <option value="specific" ${team.taskPermissions.type === 'specific' ? 'selected' : ''}>Only specific teams/members…</option>
+            </select>
+          </div>
+
+          <div id="specificPerms" style="display:${team.taskPermissions.type === 'specific' ? 'block' : 'none'}">
+            <div class="section-title">Allowed Teams</div>
+            <div id="teamCheckboxes" class="chips-row"></div>
+
+            <div class="section-title">Allowed Members</div>
+            <div id="memberSelections"></div>
+          </div>
+
+          <div class="modal-actions">
+            <button id="closePerm" class="btn btn-light">Close</button>
+            <button id="savePerm" class="btn btn-primary">Save</button>
+          </div>
+        </div>
+      `;
+
+      // רנדר ראשוני של רשימות
+      renderTeamCheckboxes();
+      renderMemberSelections();
+
+      // האזנות – כולן יחסי ל-body
+      body.querySelector('#permType')?.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const specific = body.querySelector('#specificPerms');
+        if (specific) specific.style.display = (val === 'specific') ? 'block' : 'none';
+      });
+
+      // שינוי בחירת צוותים → מרענן בחירת חברים
+      body.querySelector('#teamCheckboxes')?.addEventListener('change', (e) => {
+        const cb = e.target;
+        if (!(cb instanceof HTMLInputElement) || !cb.classList.contains('team-checkbox')) return;
+
+        const tn = cb.dataset.team;
+        const idx = team.taskPermissions.teams.indexOf(tn);
+        if (cb.checked) {
+          if (idx === -1) team.taskPermissions.teams.push(tn);
+          team.taskPermissions.membersByTeam[tn] = team.taskPermissions.membersByTeam[tn] || [];
+        } else {
+          if (idx !== -1) team.taskPermissions.teams.splice(idx, 1);
+          delete team.taskPermissions.membersByTeam[tn];
+        }
+        renderMemberSelections();
+      });
+
+      // שינוי בחירת חברים
+      body.querySelector('#memberSelections')?.addEventListener('change', (e) => {
+        const cb = e.target;
+        if (!(cb instanceof HTMLInputElement) || !cb.classList.contains('member-checkbox')) return;
+
+        const tn = cb.dataset.team;
+        const mid = cb.dataset.member;
+        team.taskPermissions.membersByTeam[tn] = team.taskPermissions.membersByTeam[tn] || [];
+
+        const list = team.taskPermissions.membersByTeam[tn];
+        const i = list.indexOf(mid);
+        if (cb.checked) {
+          if (i === -1) list.push(mid);
+        } else {
+          if (i !== -1) list.splice(i, 1);
+        }
+      });
+
+      // כפתורי סגירה ושמירה
+      body.querySelector('#closePerm')?.addEventListener('click', close);
+
+      body.querySelector('#savePerm')?.addEventListener('click', () => {
+        const typeSel = body.querySelector('#permType');
+        const typeVal = typeSel ? typeSel.value : 'all';
+
+        // מרענן את האובייקט מתוך ה־UI
+        const selectedTeams = Array.from(
+          body.querySelectorAll('#teamCheckboxes .team-checkbox:checked')
+        ).map(cb => cb.dataset.team);
+
+        const membersByTeam = {};
+        selectedTeams.forEach(tn => {
+          const chosen = Array.from(
+            body.querySelectorAll(`#memberSelections .member-checkbox[data-team="${tn}"]:checked`)
+          ).map(cb => cb.dataset.member);
+          membersByTeam[tn] = chosen;
+        });
+
+        team.taskPermissions.type = typeVal;
+        team.taskPermissions.teams = selectedTeams;
+        team.taskPermissions.membersByTeam = membersByTeam;
+
+        saveCurrentWorkspace?.();
+        toast('Permissions updated');
+        close();
+      });
+    };
+
+    render();
+  });
+
+  // אם buildModal לא מחבר אוטומטית – חבר; אם הוא כן, השורה הזו לא תזיק.
+  if (!modal.isConnected) document.body.appendChild(modal);
+}
+
+
 function openEmployeeProfile(id){
   const a=state.avatars.find(x=>x.id===id); 
   if(!a) return;
   
-  const teamOptions = state.setup.teams.map(t => 
+  const currentUser = getCurrentUser();
+  const canEdit = currentUser && canEditEmployee(currentUser.id, a.id);
+  const isCurrentTeamLead = currentUser && a.team && isTeamLeadOf(currentUser.id, a.team);
+  
+  const teamLead = a.team ? getTeamLead(a.team) : null;
+  
+  const teamOptions = canEdit ? state.setup.teams.map(t => 
     `<option value="${t}" ${a.team === t ? 'selected' : ''}>${t}</option>`
-  ).join('');
+  ).join('') : '';
   
   const modal=buildModal('Employee Profile',(body,close)=>{
     body.innerHTML=`
@@ -821,53 +1041,89 @@ function openEmployeeProfile(id){
             <div style="color:#6b7280;font-size:12px;">ID: ${a.id}</div>
           </div>
         </div>
+        
         <div class="profile-row"><span>Role</span><strong>${a.role}</strong></div>
-        <div class="form-group">
-          <label class="form-label">Team</label>
-          <select id="editTeam" class="form-control">
-            <option value="">No Team</option>
-            ${teamOptions}
-          </select>
+        
+        ${canEdit ? `
+          <div class="form-group">
+            <label class="form-label">Team</label>
+            <select id="editTeam" class="form-control">
+              <option value="">No Team</option>
+              ${teamOptions}
+            </select>
+          </div>
+        ` : `
+          <div class="profile-row"><span>Team</span><strong>${a.team || 'No Team'}</strong></div>
+        `}
+        
+        <div class="profile-row">
+          <span>Team Lead</span>
+          <strong>${teamLead ? `${teamLead.emoji} ${teamLead.name}` : 'No Team Lead'}</strong>
         </div>
-        <div class="profile-row"><span>Team Lead</span><strong>${isLead(a)?'Yes':'No'}</strong></div>
+        
+        ${isCurrentTeamLead ? `
+          <div class="form-group">
+            <label class="form-label">Set as Team Leader</label>
+            <label style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" id="setAsLead" ${a.id === state.teams[a.team]?.leadId ? 'checked' : ''} />
+              <span>This employee is the team leader</span>
+            </label>
+          </div>
+        ` : ''}
+        
         <div class="modal-buttons">
           <button id="closeEmp" class="btn btn-secondary">Close</button>
-          <button id="saveEmp" class="btn btn-primary">Save Changes</button>
+          ${canEdit ? '<button id="saveEmp" class="btn btn-primary">Save Changes</button>' : ''}
         </div>
       </div>`;
     
-    const closeBtn = byId('closeEmp');
-    const saveBtn = byId('saveEmp');
-    
-    if(closeBtn) closeBtn.onclick=close;
-    if(saveBtn) {
-      saveBtn.onclick = () => {
-        const newTeam = byId('editTeam')?.value;
-        
-        if(a.team && state.teams[a.team]) {
-          state.teams[a.team].members = state.teams[a.team].members.filter(memberId => memberId !== a.id);
-        }
-        
-        a.team = newTeam || null;
-        
-        if(newTeam) {
-          ensureTeamExists(newTeam);
-          if(!state.teams[newTeam].members.includes(a.id)) {
-            state.teams[newTeam].members.push(a.id);
+    setTimeout(() => {
+      const closeBtn = byId('closeEmp');
+      const saveBtn = byId('saveEmp');
+      
+      if(closeBtn) closeBtn.onclick=close;
+      
+      if(saveBtn && canEdit) {
+        saveBtn.onclick = () => {
+          const newTeam = byId('editTeam')?.value;
+          const setAsLead = byId('setAsLead')?.checked;
+          
+          // Remove from old team
+          if(a.team && state.teams[a.team]) {
+            state.teams[a.team].members = state.teams[a.team].members.filter(memberId => memberId !== a.id);
+            
+            // If was lead, remove lead status
+            if(state.teams[a.team].leadId === a.id) {
+              state.teams[a.team].leadId = null;
+            }
           }
-        }
-        
-        saveCurrentWorkspace();
-        close();
-        renderPlatformForUser();
-        toast('Employee team updated');
-      };
-    }
+          
+          // Update team
+          a.team = newTeam || null;
+          
+          // Add to new team
+          if(newTeam) {
+            ensureTeamExists(newTeam);
+            if(!state.teams[newTeam].members.includes(a.id)) {
+              state.teams[newTeam].members.push(a.id);
+            }
+            
+            // Set as lead if checked
+            if(setAsLead && isCurrentTeamLead) {
+              state.teams[newTeam].leadId = a.id;
+            }
+          }
+          
+          saveCurrentWorkspace();
+          close();
+          renderPlatformForUser();
+          toast('Employee updated');
+        };
+      }
+    }, 0);
   });
   document.body.appendChild(modal);
 }
-
-
 
 /* ===========================
    Office Movement
@@ -1043,7 +1299,19 @@ if(topBackBtn) {
     topBackBtn.style.display = 'none';
   };
 }
-  const tn = byId('teamName'); if(tn) tn.textContent=teamName;
+  const tn = byId('teamName'); 
+  if(tn) tn.textContent=teamName;
+  
+  // Show team lead
+  const leadInfo = byId('teamLeadInfo');
+  if(leadInfo) {
+    const lead = getTeamLead(teamName);
+    if(lead) {
+      leadInfo.innerHTML = `<span style="font-size:14px;color:#6b7280;">Team Leader: <strong>${lead.emoji} ${lead.name}</strong></span>`;
+    } else {
+      leadInfo.innerHTML = `<span style="font-size:14px;color:#6b7280;">No team leader assigned</span>`;
+    }
+  }
 
   // Render team events (same as company events in sidebar)
   const eventsSection = byId('teamEventsSection');
@@ -1134,6 +1402,19 @@ if(backBtn) backBtn.onclick=()=>{
       enableDnD(teamName);
     };
   }
+
+  setTimeout(() => {
+    const managePermsBtn = byId('managePermsBtn');
+    if(managePermsBtn) {
+      const currentUser = getCurrentUser();
+      if(currentUser && isTeamLeadOf(currentUser.id, teamName)) {
+        managePermsBtn.style.display = 'inline-flex';
+        managePermsBtn.onclick = () => showTeamPermissionsModal(teamName);
+      } else {
+        managePermsBtn.style.display = 'none';
+      }
+    }
+  }, 50);
 }
 
 function renderBoard(teamName){
@@ -1222,8 +1503,8 @@ function renderTaskCard(task, team, mini=false, isClone=false){
   if(task.assigneeRole && !assignee){ asg.title = 'Role: '+task.assigneeRole; }
   footer.append(pts,asg); card.appendChild(footer);
 
-  const user=getCurrentUser(); const lead=user && isLead(user);
-  if(task.status==='waiting' && lead){
+  const user=getCurrentUser();
+  if(task.status==='waiting' && user && isTeamLeadOf(user.id, team.name)){
     const btn=document.createElement('button'); btn.className='approve-button'; btn.textContent='Approve & Done';
     btn.onclick=(e)=>{
       e.stopPropagation();
@@ -1284,9 +1565,10 @@ function enableDnD(teamName){
       const taskId=ev.dataTransfer?.getData('text/task-id'); const task=team.tasks.find(t=>t.id===taskId); if(!task) return;
       const prev = task.status;
 
-
-
-      if(prev==='waiting' && status==='done' && !isLeadUser){ toast('Only Team Lead can approve to Done.'); return; }
+      if(prev==='waiting' && status==='done' && !isTeamLeadOf(user?.id, teamName)){ 
+        toast('Only Team Lead can approve to Done.'); 
+        return; 
+      }
 
 if(status==='todo' && !task.assigneeId && !isPersonal && team.members.length > 0){
   promptAssignMember(team, (memberId)=>{
@@ -1332,6 +1614,12 @@ if(status==='todo' && !task.assigneeId && !isPersonal && team.members.length > 0
 }
 
 function showAddTaskModal(teamName, targetStatus = 'backlog'){
+  const currentUser = getCurrentUser();
+  if(!currentUser || !canManageTasks(currentUser.id, teamName)) {
+    toast('You do not have permission to add tasks');
+    return;
+  }
+
   ensureTeamExists(teamName);
   const team=state.teams[teamName];
   const isPersonal = state.workspace.type === 'personal';
@@ -1532,6 +1820,12 @@ function showTaskDetailsModal(task, team){
       const deleteBtn = byId('deleteTaskBtn');
       if(deleteBtn){
         deleteBtn.onclick=()=>{
+          const currentUser = getCurrentUser();
+          if(!currentUser || !canManageTasks(currentUser.id, team.name)) {
+            toast('You do not have permission to delete tasks');
+            return;
+          }
+          
           if(confirm(`Are you sure you want to delete "${task.title}"?`)){
             team.tasks = team.tasks.filter(t => t.id !== task.id);
             saveCurrentWorkspace();
@@ -2263,6 +2557,32 @@ function showEmployeeSignInModal(){
     },0);
   });
   document.body.appendChild(modal);
+}
+
+function signOutEmployee(){
+  if(!state.currentUserId) return;
+  
+  state.currentUserId = null;
+  
+  // Clear visual highlights
+  const map = byId('officeMap');
+  if(map) {
+    map.querySelectorAll('.user-character').forEach(char => {
+      char.style.outline = 'none';
+    });
+  }
+  
+  // Update top nav to show no user
+  const navUserAvatar = byId('navUserAvatar');
+  const navUserName = byId('navUserName');
+  const navUserRole = byId('navUserRole');
+  
+  if(navUserAvatar) navUserAvatar.textContent = '•';
+  if(navUserName) navUserName.textContent = 'Not signed in';
+  if(navUserRole) navUserRole.textContent = '';
+  
+  renderPlatformForUser();
+  toast('Signed out from employee');
 }
 
 function showCreateTeamModal(){

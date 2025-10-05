@@ -113,8 +113,22 @@ html,body{margin:0;padding:0;font-family:var(--font);color:var(--color-slate-900
 .emp-points{font-size:11px;color:#10B981;font-weight:700;margin-left:6px}
 
 /* floating buttons in office */
-#createNewAvatarBtn{position:absolute;bottom:20px;right:20px;z-index:101}
-.btn-employee-login{position:absolute;bottom:20px;right:200px;z-index:101}
+/* Office action buttons - single row layout */
+.office-action-buttons {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 101;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.office-action-buttons .btn {
+  white-space: nowrap;
+  margin: 0 !important;
+  position: static !important;
+}
 
 /* Team */
 #teamScreen{background:#F8FAFC;flex-direction:column;overflow:auto}
@@ -527,3 +541,19 @@ button:focus, input:focus { outline: 2px solid #3b82f6; outline-offset: 2px; }
 
 /* optional: subtle error text */
 #ev-error { color: var(--color-text-secondary); }
+
+/* Office action buttons - single row layout */
+.office-action-buttons {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 101;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: 600px;
+}
+
+.office-action-buttons .btn {
+  white-space: nowrap;
+}

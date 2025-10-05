@@ -266,9 +266,12 @@
           </div>
         </aside>
 
-        <button type="button" id="createNewAvatarBtn" class="btn btn-secondary">+ Create New Avatar</button>
-        <button type="button" id="employeeSignInBtn" class="btn btn-secondary btn-employee-login">Employee Sign In</button>
-        <button type="button" id="createTeamBtn" class="btn btn-secondary" style="position:absolute;bottom:70px;right:20px;z-index:101;">+ Create Team</button>
+        <div class="office-action-buttons">
+          <button type="button" id="employeeSignInBtn" class="btn btn-secondary">Employee Sign In</button>
+          <button type="button" id="signOutEmployeeBtn" class="btn btn-secondary" style="display:none;">Sign Out Employee</button>
+          <button type="button" id="createNewAvatarBtn" class="btn btn-secondary">+ Create New Avatar</button>
+          <button type="button" id="createTeamBtn" class="btn btn-secondary">+ Create Team</button>
+        </div>
       </div>
     </div>
   </div>
@@ -281,18 +284,19 @@
         <button type="button" id="backButton" class="back-button">← Back to Office</button>
         <div class="team-info">
           <h2 id="teamName" class="team-title"></h2>
+          <div id="teamLeadInfo" style="margin-bottom:8px;"></div>
           <div id="teamMembersList" class="team-members"></div>
         </div>
 
         <div class="team-actions">
+          <button type="button" id="managePermsBtn" class="btn btn-secondary btn-sm">Manage Permissions</button>
           <button type="button" id="addTaskHeaderBtn" class="add-task-header-btn">+ Add Task</button>
-          
+  
           <div style="margin-top:16px;padding:12px;background:#f8f9ff;border-radius:8px;border:1px solid #e5e7eb;">
             <div class="section-title" style="margin:0 0 8px 0;">📅 Team Events</div>
             <button type="button" id="teamEventsBtn" class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px;">+ Add Event</button>
             <div id="teamEventsSection"></div>
           </div>
-
         </div>
       </header>
 
