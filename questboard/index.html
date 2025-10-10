@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Addy Avatar & Workspace Store - Your Journey to Greatness!</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header with user stats -->
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <h1 class="app-title">✨ Your Personal Encouragement Store</h1>
+                    <div class="motivational-quote" id="motivationalQuote">
+                        "You're capable of amazing things!"
+                    </div>
+                    <div class="user-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Level</span>
+                            <span class="stat-value level-display" id="userLevel">1</span>
+                            <span class="level-title" id="levelTitle">Getting Started</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Coins</span>
+                            <span class="stat-value coins-display" id="userCoins">100</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Points</span>
+                            <span class="stat-value points-display" id="userPoints">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-section">
+                    <div class="progress-info">
+                        <span class="progress-text">Your Growth Journey</span>
+                        <span class="progress-numbers" id="progressNumbers">0 / 100</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="navigation">
+            <div class="container">
+                <div class="nav-buttons">
+                    <button class="nav-btn active" data-section="avatars">😊 Avatars</button>
+                    <button class="nav-btn" data-section="workspace">🎨 Workspace</button>
+                    <button class="nav-btn" data-section="collection">📦 My Collection</button>
+                    <button class="nav-btn" data-section="earn">💰 Earn Coins</button>
+                    <button class="nav-btn" data-section="achievements">🏆 Achievements</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main">
+            <div class="container">
+                <!-- Avatar Store Section -->
+                <section id="avatars" class="content-section active">
+                    <div class="section-header">
+                        <div class="section-title-area">
+                            <h2>Choose Your Encouraging Avatar</h2>
+                            <p class="section-subtitle">Find the perfect emoji that represents your amazing spirit!</p>
+                        </div>
+                        <div class="store-filters">
+                            <select id="categoryFilter" class="form-control">
+                                <option value="all">All Categories</option>
+                                <option value="happy_vibes">Happy Vibes (Free)</option>
+                                <option value="determined">Determined</option>
+                                <option value="peaceful">Peaceful</option>
+                                <option value="energetic">Energetic</option>
+                                <option value="creative">Creative</option>
+                                <option value="magical">Magical</option>
+                                <option value="animals">Animals</option>
+                                <option value="nature">Nature</option>
+                                <option value="achievements">Achievements</option>
+                            </select>
+                            <input type="text" id="searchInput" class="form-control" placeholder="Search for inspiration...">
+                        </div>
+                    </div>
+                    <div class="emoji-grid" id="emojiGrid">
+                        <!-- Avatars will be populated by JavaScript -->
+                    </div>
+                </section>
+
+                <!-- Workspace Themes Section -->
+                <section id="workspace" class="content-section">
+                    <div class="section-header">
+                        <div class="section-title-area">
+                            <h2>Customize Your Inspiring Workspace</h2>
+                            <p class="section-subtitle">Create an environment that motivates and inspires you every day!</p>
+                        </div>
+                    </div>
+                    <div class="current-theme">
+                        <h3>Current Theme</h3>
+                        <div class="theme-preview" id="currentThemePreview">
+                            <div class="theme-name" id="currentThemeName">Addy Light</div>
+                            <div class="theme-colors">
+                                <div class="color-swatch" id="currentPrimary"></div>
+                                <div class="color-swatch" id="currentSecondary"></div>
+                                <div class="color-swatch" id="currentBackground"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="theme-categories">
+                        <div class="theme-category" id="defaultThemes">
+                            <h3>🌟 Default Themes</h3>
+                            <div class="themes-grid" id="defaultThemesGrid"></div>
+                        </div>
+                        <div class="theme-category" id="professionalThemes">
+                            <h3>💼 Professional Themes</h3>
+                            <div class="themes-grid" id="professionalThemesGrid"></div>
+                        </div>
+                        <div class="theme-category" id="creativeThemes">
+                            <h3>🎨 Creative Themes</h3>
+                            <div class="themes-grid" id="creativeThemesGrid"></div>
+                        </div>
+                        <div class="theme-category" id="motivationalThemes">
+                            <h3>🚀 Motivational Themes</h3>
+                            <div class="themes-grid" id="motivationalThemesGrid"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Collection Section -->
+                <section id="collection" class="content-section">
+                    <div class="section-header">
+                        <div class="section-title-area">
+                            <h2>Your Amazing Collection</h2>
+                            <p class="section-subtitle">Look at all the positivity you've gathered!</p>
+                        </div>
+                        <div class="collection-stats">
+                            <span class="collection-count">Owned: <span id="ownedCount">0</span></span>
+                        </div>
+                    </div>
+                    <div class="current-avatar">
+                        <h3>Your Current Avatar</h3>
+                        <div class="avatar-display" id="currentAvatar">😀</div>
+                        <div class="current-message" id="currentMessage">Spread positivity everywhere!</div>
+                    </div>
+                    <div class="emoji-grid" id="collectionGrid">
+                        <!-- Owned avatars will be populated by JavaScript -->
+                    </div>
+                </section>
+
+                <!-- Earn Coins Section -->
+                <section id="earn" class="content-section">
+                    <div class="section-header">
+                        <div class="section-title-area">
+                            <h2>Earn Coins & Build Confidence</h2>
+                            <p class="section-subtitle">Every action you take builds your inner strength!</p>
+                        </div>
+                    </div>
+                    <div class="earn-options">
+                        <div class="earn-card">
+                            <div class="earn-icon">🎁</div>
+                            <h3>Daily Encouragement</h3>
+                            <p>Start each day with 20 coins and positive vibes!</p>
+                            <button class="btn btn--primary" id="dailyBonusBtn">Claim Daily Boost</button>
+                            <span class="cooldown-text" id="dailyCooldown"></span>
+                        </div>
+                        <div class="earn-card">
+                            <div class="earn-icon">🌟</div>
+                            <h3>Fortune Spinner</h3>
+                            <p>Spin the wheel of positivity for 5-50 coins!</p>
+                            <button class="btn btn--secondary" id="spinnerBtn">Spin for Success (5 coins)</button>
+                        </div>
+                        <div class="earn-card">
+                            <div class="earn-icon">🎯</div>
+                            <h3>Focus Challenge</h3>
+                            <p>Practice focus and earn coins for your determination!</p>
+                            <button class="btn btn--secondary" id="clickGameBtn">Start Challenge</button>
+                            <div class="click-game" id="clickGameArea"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Achievements Section -->
+                <section id="achievements" class="content-section">
+                    <div class="section-header">
+                        <div class="section-title-area">
+                            <h2>Your Growth Achievements</h2>
+                            <p class="section-subtitle">Celebrate every step of your journey!</p>
+                        </div>
+                    </div>
+                    <div class="achievements-grid" id="achievementsGrid">
+                        <!-- Achievements will be populated by JavaScript -->
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Purchase Modal -->
+        <div class="modal hidden" id="purchaseModal">
+            <div class="modal-backdrop" id="modalBackdrop"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Choose Your Inspiration</h3>
+                    <button class="modal-close" id="modalClose">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="emoji-preview" id="modalEmojiPreview">😀</div>
+                    <h4 id="modalEmojiName">Avatar Name</h4>
+                    <div class="encouraging-message" id="modalMessage">Your encouraging message!</div>
+                    <div class="purchase-details">
+                        <div class="detail-item">
+                            <span>Investment:</span>
+                            <span class="cost-value" id="modalCost">0 coins</span>
+                        </div>
+                        <div class="detail-item">
+                            <span>Required Level:</span>
+                            <span id="modalLevel">1</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn--outline" id="cancelPurchase">Maybe Later</button>
+                    <button class="btn btn--primary" id="confirmPurchase">Choose This Avatar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theme Modal -->
+        <div class="modal hidden" id="themeModal">
+            <div class="modal-backdrop" id="themeModalBackdrop"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Apply Inspiring Theme</h3>
+                    <button class="modal-close" id="themeModalClose">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="theme-preview-large" id="themePreviewLarge">
+                        <div class="theme-name" id="themeModalName">Theme Name</div>
+                        <div class="theme-description" id="themeModalDescription">Theme description</div>
+                        <div class="theme-colors-large">
+                            <div class="color-swatch-large" id="themeModalPrimary"></div>
+                            <div class="color-swatch-large" id="themeModalSecondary"></div>
+                            <div class="color-swatch-large" id="themeModalBackground"></div>
+                        </div>
+                    </div>
+                    <div class="theme-details">
+                        <div class="detail-item">
+                            <span>Cost:</span>
+                            <span class="cost-value" id="themeModalCost">0 coins</span>
+                        </div>
+                        <div class="detail-item">
+                            <span>Required Level:</span>
+                            <span id="themeModalLevel">1</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn--outline" id="cancelTheme">Maybe Later</button>
+                    <button class="btn btn--primary" id="confirmTheme">Apply Theme</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
