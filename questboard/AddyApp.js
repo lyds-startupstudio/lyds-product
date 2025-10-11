@@ -9,7 +9,7 @@ const state = {
   teams: {},
   currentUserId: null,
   currentTeam: null,
-  office: { posX:0, posY:0, speed:3, keys:{}, loopId:null, keydownHandler:null, keyupHandler:null, nearTeam:null },
+office: { posX:0, posY:0, speed:3, keys:{}, loopId:null, keydownHandler:null, keyupHandler:null, nearTeam:null, controlledAvatarId:null },
   ui: { beltPaused:false },
   workspace: { id:null, type:null, login:null },
   companyEvents: [],
@@ -77,136 +77,10 @@ function getSupabaseClient() {
   return window._supaClient;
 }
 
-/** ===== Forgot Password (Supabase link flow) ===== */
-(function initForgotPassword() {
-  const bySel = (s)=>document.querySelector(s);
 
-  // פותח/סוגר מודלים קטנים
-  function openModal(sel){ const el = bySel(sel); if(el){ el.classList.remove('hidden'); } }
-  function closeModal(sel){ const el = bySel(sel); if(el){ el.classList.add('hidden'); } }
-  document.addEventListener('click', (e)=>{
-    const closeSel = e.target?.getAttribute?.('data-close');
-    if (closeSel) { closeModal(closeSel); }
-    if (e.target?.classList?.contains('modal')) { e.target.classList.add('hidden'); } // סגירה בלחיצה על רקע
-  });
 
-  // טריגר מהטופ־בר (הוספנו ב-HTML)
-  document.addEventListener('click', (e)=>{
-    if (e.target && e.target.id === 'forgotPwdBtn') {
-      e.preventDefault();
-      bySel('#fpwError')?.style && (bySel('#fpwError').style.display = 'none');
-      openModal('#fpw-modal-email');
-    }
-  });
 
-  // שליחת מייל איפוס
-  const sendBtn = bySel('#fpwSendBtn');
-  if (sendBtn) {
-    sendBtn.addEventListener('click', async ()=>{
-      const email = bySel('#fpwEmail')?.value?.trim();
-      const errEl = bySel('#fpwError');
-      if (!email) {
-        if (errEl){ errEl.textContent = 'Please enter your email.'; errEl.style.display='block'; }
-        return;
-      }
-      sendBtn.disabled = true;
 
-      try{
-        const redirectTo = 'https://lyds.me/addy/AddyIndex.html';
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-        if (error) throw error;
-
-        // סגירה ופתיחת מסר “נשלח”
-        closeModal('#fpw-modal-email');
-        const sentEmailEl = bySel('#fpwSentEmail');
-        if (sentEmailEl) sentEmailEl.textContent = email;
-        openModal('#fpw-modal-sent');
-      }catch(err){
-        if (errEl){ errEl.textContent = err.message || String(err); errEl.style.display='block'; }
-      }finally{
-        sendBtn.disabled = false;
-      }
-    });
-  }
-
-  // שלב 2: כשהמשתמש מגיע חזרה מהקישור — Supabase מחזיר מצב RECOVERY
-  // נציג מודל לקביעת סיסמה חדשה (במקום דף נפרד, עושים את זה inline).
-  // נזהה מצב רקובֶרי ונפתח דיאלוג "בחר סיסמה חדשה".
-  supabase.auth.onAuthStateChange(async (event, session)=>{
-    if (event === 'PASSWORD_RECOVERY') {
-      showNewPasswordDialog();
-    }
-  });
-
-  // בניית דיאלוג "בחר סיסמה חדשה" דינמית (כדי לא להעמיס HTML אם לא צריך)
-  function showNewPasswordDialog(){
-    let dlg = bySel('#fpw-modal-newpass');
-    if (!dlg) {
-      const wrapper = document.createElement('div');
-      wrapper.id = 'fpw-modal-newpass';
-      wrapper.className = 'modal';
-      wrapper.innerHTML = `
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Choose a new password</h3>
-            <button class="modal-close" data-close="#fpw-modal-newpass">×</button>
-          </div>
-          <div class="modal-form">
-            <div class="form-group">
-              <label class="form-label">New password</label>
-              <input id="fpwNew1" type="password" class="form-control" placeholder="At least 8 characters">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Confirm new password</label>
-              <input id="fpwNew2" type="password" class="form-control" placeholder="Repeat password">
-            </div>
-            <p id="fpwNewErr" class="small-hint" style="color:#b42318;display:none;margin-top:8px;"></p>
-            <div class="modal-actions">
-              <button class="btn btn-secondary" data-close="#fpw-modal-newpass">Cancel</button>
-              <button id="fpwSetBtn" class="btn btn-primary">Update password</button>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(wrapper);
-      dlg = wrapper;
-
-      const setBtn = dlg.querySelector('#fpwSetBtn');
-      setBtn.addEventListener('click', async ()=>{
-        const p1 = bySel('#fpwNew1')?.value || '';
-        const p2 = bySel('#fpwNew2')?.value || '';
-        const err = bySel('#fpwNewErr');
-
-        if (p1.length < 8) { err.textContent = 'Password must be at least 8 characters.'; err.style.display='block'; return; }
-        if (p1 !== p2)   { err.textContent = 'Passwords do not match.'; err.style.display='block'; return; }
-
-        setBtn.disabled = true;
-        try{
-          const { data, error } = await supabase.auth.updateUser({ password: p1 });
-          if (error) throw error;
-          // הצלחה – נסגור את הדיאלוג ונודיע
-          dlg.classList.add('hidden');
-          toast('Password updated. You can sign in now.', 'success');
-        }catch(e){
-          err.textContent = e.message || String(e);
-          err.style.display = 'block';
-        }finally{
-          setBtn.disabled = false;
-        }
-      });
-    }
-    dlg.classList.remove('hidden');
-  }
-
-  // טוסט קטן אם אין לך אחד
-  function toast(msg, type='info'){
-    const t = document.createElement('div');
-    t.className = `toast ${type==='success'?'success': type==='warn'?'warn': type==='error'?'error':''}`;
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(()=>{ t.remove(); }, 3000);
-  }
-})();
 
 let currentWorkspaceName = "default";
 const CLOUD_CACHE = "QB_workspace_cache_v1";
@@ -983,10 +857,11 @@ function renderSidebar(){
       const currentUser = getCurrentUser();
       const canDeleteEmployees = currentUser && canPerformAction(currentUser.id, 'manageEmployees');
 
-      list.innerHTML = filtered.map(a=>`
-        <div class="employee-item" data-id="${a.id}" style="display:flex;justify-content:space-between;align-items:center;">
-          <div onclick="openEmployeeProfile('${a.id}')" style="display:flex;gap:10px;align-items:center;flex:1;cursor:pointer;">
-            <div class="emp-avatar">${a.emoji}</div>
+list.innerHTML = filtered.map(a=>`
+  <div class="employee-item" data-id="${a.id}" style="display:flex;justify-content:space-between;align-items:center;">
+    <div onclick="selectAvatarForControl('${a.id}')" style="display:flex;gap:10px;align-items:center;flex:1;cursor:pointer;" title="Click to control this avatar">
+
+          <div class="emp-avatar">${a.emoji}</div>
             <div class="emp-info">
               <div class="emp-name">${a.name}${isLead(a)?' <span class="lead-star">★</span>':''}</div>
               <div class="emp-meta">${a.role}${a.team?' · '+a.team:''}</div>
@@ -999,6 +874,37 @@ function renderSidebar(){
   if(search) search.oninput=refresh;
   refresh();
 }
+
+
+
+function selectAvatarForControl(avatarId) {
+  const avatar = state.avatars.find(a => a.id === avatarId);
+  if(!avatar) return;
+  
+  // Set this avatar as controlled
+  state.office.controlledAvatarId = avatarId;
+  
+  // Update visual highlights
+  const map = byId('officeMap');
+  if(map) {
+    // Remove all control highlights
+    map.querySelectorAll('.user-character').forEach(char => {
+      char.style.outline = 'none';
+      char.style.boxShadow = 'none';
+    });
+    
+    // Highlight the controlled avatar
+    const char = byId(`char-${avatarId}`);
+    if(char) {
+      char.style.outline = '4px solid #4F46E5';
+      char.style.outlineOffset = '2px';
+      char.style.boxShadow = '0 0 20px rgba(79, 70, 229, 0.6)';
+    }
+  }
+  
+  toast(`Now controlling ${avatar.name}. Use arrow keys or WASD to move!`);
+}
+
 
 function isLead(avatar){
   const team = avatar.team && state.teams[avatar.team];
@@ -1643,12 +1549,13 @@ const kd=(e)=>{
   document.addEventListener('keydown',kd); 
   document.addEventListener('keyup',ku);
 
-  const step=()=>{ 
-    const currentUserId = state.currentUserId;
-    if(!currentUserId) {
-      state.office.loopId=requestAnimationFrame(step);
-      return;
-    }
+const step=()=>{ 
+  // Use controlled avatar if set, otherwise use currentUserId
+  const controlledId = state.office.controlledAvatarId || state.currentUserId;
+  if(!controlledId) {
+    state.office.loopId=requestAnimationFrame(step);
+    return;
+  }
     
     const s=state.office.speed; 
     let dx=0,dy=0; 
@@ -1664,17 +1571,17 @@ const kd=(e)=>{
     }
     
     const mrg=30, w=map.clientWidth, h=map.clientHeight;
-    const pos = state.office.avatarPositions[currentUserId];
-    if(pos) {
-      pos.x = clamp(pos.x + dx, mrg, w - mrg);
-      pos.y = clamp(pos.y + dy, mrg, h - mrg);
-      
-      const ch = byId(`char-${currentUserId}`);
-      if(ch) {
-        ch.style.left = pos.x + 'px';
-        ch.style.top = pos.y + 'px';
-      }
-    }
+const pos = state.office.avatarPositions[controlledId];
+if(pos) {
+  pos.x = clamp(pos.x + dx, mrg, w - mrg);
+  pos.y = clamp(pos.y + dy, mrg, h - mrg);
+  
+  const ch = byId(`char-${controlledId}`);
+  if(ch) {
+    ch.style.left = pos.x + 'px';
+    ch.style.top = pos.y + 'px';
+  }
+}
     
     near(); 
     state.office.loopId=requestAnimationFrame(step); 
@@ -1683,11 +1590,11 @@ const kd=(e)=>{
 
 
 
-  function near(){
-    const currentUserId = state.currentUserId;
-    if(!currentUserId) return;
-    
-    const ch = byId(`char-${currentUserId}`);
+function near(){
+  const controlledId = state.office.controlledAvatarId || state.currentUserId;
+  if(!controlledId) return;
+  
+  const ch = byId(`char-${controlledId}`);
     if(!ch) return;
     
     const rooms=$$('.team-room'); 
@@ -2927,6 +2834,130 @@ function showCelebration(points){
 
 window.showAddTaskToColumnModal=showAddTaskToColumnModal;
 
+function showSecurityQuestionModal(){
+  const modal = buildModal('Forgot Password',(body,close)=>{
+    body.innerHTML = `
+      <form id="forgotPasswordForm" class="modal-form">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input id="fpEmail" type="email" class="form-control" placeholder="Your email" required>
+        </div>
+        <div id="questionSection" style="display:none;">
+          <div class="form-group">
+            <label class="form-label" id="fpQuestion">Security Question</label>
+          <input id="fpAnswer" type="text" class="form-control" placeholder="Your answer">
+          </div>
+        </div>
+        <div class="modal-buttons">
+          <button type="button" id="fpCancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">Continue</button>
+        </div>
+        <p id="fpError" style="color:#EF4444;font-size:12px;margin-top:8px;display:none;"></p>
+      </form>`;
+    
+
+
+    setTimeout(()=>{
+      const cancelBtn = byId('fpCancel');
+      const form = byId('forgotPasswordForm');
+      const questionSection = byId('questionSection');
+      const fpQuestion = byId('fpQuestion');
+      const fpError = byId('fpError');
+      let userSecurityData = null;
+      
+      if(cancelBtn) cancelBtn.onclick = close;
+      
+      if(form) {
+        form.onsubmit = async (e) => {
+          e.preventDefault();
+          const email = byId('fpEmail')?.value.trim();
+          const answer = byId('fpAnswer')?.value.trim();
+          
+          if(!email) {
+            fpError.textContent = 'Please enter your email';
+            fpError.style.display = 'block';
+            return;
+          }
+          
+          // If security question not shown yet, fetch it
+          if(questionSection.style.display === 'none') {
+            try {
+              const { data: { users }, error } = await getSupabaseClient().auth.admin.listUsers();
+              
+
+              
+              if(error) throw error;
+              
+              const user = users.find(u => u.email === email);
+              
+              if(!user || !user.user_metadata?.security_question) {
+                fpError.textContent = 'No account found with this email';
+                fpError.style.display = 'block';
+                return;
+              }
+              
+              userSecurityData = user.user_metadata;
+              fpQuestion.textContent = userSecurityData.security_question;
+              questionSection.style.display = 'block';
+              byId('fpEmail').disabled = true;
+              fpError.style.display = 'none';
+            } catch(err) {
+              fpError.textContent = 'Error: ' + (err?.message || 'Please try again');
+              fpError.style.display = 'block';
+            }
+
+
+            
+          } else {
+            // Verify answer
+            if(!answer) {
+              fpError.textContent = 'Please enter your answer';
+              fpError.style.display = 'block';
+              return;
+            }
+            
+            if(answer.toLowerCase() === userSecurityData.security_answer) {
+              try {
+                // Log the user in directly
+                await getSupabaseClient().auth.signInWithPassword({
+                  email: email,
+                  password: 'temp' // This will fail but trigger the real flow
+                }).catch(async () => {
+                  // Send a magic link instead
+                  await getSupabaseClient().auth.signInWithOtp({
+                    email: email,
+                    options: {
+                      shouldCreateUser: false
+                    }
+                  });
+                });
+                
+                toast('Security verified! Check your email for the login link.');
+                close();
+              } catch(err) {
+                fpError.textContent = 'Error: ' + (err?.message || 'Please try again');
+                fpError.style.display = 'block';
+              }
+            } else {
+
+
+              fpError.textContent = 'Incorrect answer. Please try again.';
+              fpError.style.display = 'block';
+            }
+          }
+        };
+      }
+    }, 0);
+  });
+  document.body.appendChild(modal);
+}
+
+
+
+
+
+
+
 
 /* ===========================
    Auth Modals
@@ -2943,17 +2974,27 @@ function showGlobalSignInModal(){
           <label>Password</label>
           <input id="siPass" type="password" class="form-control" placeholder="Your password" required>
         </div>
+        <div style="text-align:right;margin-bottom:12px;">
+          <button type="button" id="forgotPasswordLink" class="btn-link" style="background:none;border:none;color:#4F46E5;cursor:pointer;text-decoration:underline;font-size:14px;">Forgot password?</button>
+        </div>
         <div class="modal-buttons">
           <button type="button" id="siCancel" class="btn btn-secondary">Cancel</button>
-<button type="submit" class="btn btn-primary">Sign In</button>
+          <button type="submit" class="btn btn-primary">Sign In</button>
         </div>
       </form>`;
       
     setTimeout(()=>{
       const cancelBtn = byId('siCancel');
-      const submitBtn = byId('siSubmit');
+      const forgotPasswordLink = byId('forgotPasswordLink');
       
       if(cancelBtn) cancelBtn.onclick = close;
+      
+      if(forgotPasswordLink) {
+        forgotPasswordLink.onclick = () => {
+          close();
+          showSecurityQuestionModal();
+        };
+      }
 
       const form = byId('globalSignInForm');
 if(form) {
@@ -3788,23 +3829,31 @@ function deleteEmployee(employeeId) {
 /* ===========================
    Initial Load
    =========================== */
+/* ===========================
+   Initial Load
+   =========================== */
 document.addEventListener('DOMContentLoaded', ()=>{
   const haveAccountBtn = byId('haveAccountBtn');
   const initialSignupForm = byId('initialSignupForm');
   
   if(haveAccountBtn){
-    haveAccountBtn.onclick = ()=>{
+    haveAccountBtn.onclick = (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
       showGlobalSignInModal();
     };
   }
-  
+
+
   if(initialSignupForm){
     initialSignupForm.onsubmit = async (e)=>{
       e.preventDefault();
       const email = byId('signupEmail')?.value.trim();
       const pass = byId('signupPassword')?.value;
+      const securityQuestion = byId('signupSecurityQuestion')?.value;
+      const securityAnswer = byId('signupSecurityAnswer')?.value.trim();
       
-      if(!email || !pass){
+      if(!email || !pass || !securityQuestion || !securityAnswer){
         toast('Please fill all fields');
         return;
       }
@@ -3813,11 +3862,26 @@ document.addEventListener('DOMContentLoaded', ()=>{
         toast('Password must be at least 8 characters');
         return;
       }
-      
+
       try{
         await cloudSignUp(email, pass);
         await cloudSignIn(email, pass);
         
+        // Store security question and answer in localStorage
+        const securityKey = 'security_' + email;
+        localStorage.setItem(securityKey, JSON.stringify({
+          question: securityQuestion,
+          answer: securityAnswer.toLowerCase()
+        }));
+        
+        // Also store in user metadata as backup
+        await getSupabaseClient().auth.updateUser({
+          data: { 
+            security_question: securityQuestion,
+            security_answer: securityAnswer.toLowerCase()
+          }
+        });
+
         const signupScreen = byId('signupScreen');
         const setupScreen = byId('setupScreen');
         if(signupScreen) signupScreen.classList.remove('active');

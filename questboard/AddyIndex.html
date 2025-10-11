@@ -29,11 +29,26 @@
               <label class="form-label">Email</label>
               <input id="signupEmail" type="email" class="form-control" placeholder="you@example.com" required>
             </div>
-            <div class="form-group">
-              <label class="form-label">Password</label>
-              <input id="signupPassword" type="password" class="form-control" placeholder="Choose a strong password (min 8 characters)" required>
-            </div>
-            <button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;">Create Account & Continue</button>
+
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input id="signupPassword" type="password" class="form-control" placeholder="Choose a strong password (min 8 characters)" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Security Question</label>
+            <select id="signupSecurityQuestion" class="form-control" required>
+              <option value="">Choose a security question</option>
+              <option value="What was the name of your first pet?">What was the name of your first pet?</option>
+              <option value="What city were you born in?">What city were you born in?</option>
+              <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Security Answer</label>
+            <input id="signupSecurityAnswer" type="text" class="form-control" placeholder="Your answer" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;">Create Account & Continue</button>
+
           </form>
         </div>
       </div>
@@ -516,20 +531,6 @@
 <script src="AddyApp.js"></script>
 <script src="customization-store.js"></script>
 
-<!-- Forgot Password trigger near the Sign In button -->
-<script>
-  // מוסיף את כפתור "Forgot password?" ליד כפתור Sign In אם הוא קיים בדף
-  document.addEventListener('DOMContentLoaded', () => {
-    const topbar = document.querySelector('.setup-topbar');
-    if (topbar && !document.getElementById('forgotPwdBtn')) {
-      const btn = document.createElement('button');
-      btn.id = 'forgotPwdBtn';
-      btn.className = 'btn btn-ghost btn-sm';
-      btn.textContent = 'Forgot password?';
-      topbar.appendChild(btn);
-    }
-  });
-</script>
 
 <!-- === Forgot Password: Request Email Modal === -->
 <div id="fpw-modal-email" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="fpwEmailTitle">
