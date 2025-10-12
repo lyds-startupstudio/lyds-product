@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Addy - Gamified Team Management</title>
   <link rel="stylesheet" href="AddyStyle.css"/>
+  <link rel="stylesheet" href="Store/StoreStyle.css"/>
 </head>
 <body>
   <!-- Sign Up Screen - FIRST SCREEN -->
@@ -217,21 +218,23 @@
     </svg>
   </button>
   <div class="logo">Addy</div>
-</div>        <div class="nav-center">
-          <div class="user-info">
-            <div id="navUserAvatar" class="user-avatar-nav"></div>
-            <div class="user-details">
-              <div id="navUserName" class="user-name"></div>
-              <div id="navUserRole" class="user-role"></div>
+</div>
+<div class="nav-center">
+  <div class="user-info">
+    <div id="navUserAvatar" class="user-avatar-nav"></div>
+    <div class="user-details">
+      <div id="navUserName" class="user-name"></div>
+      <div id="navUserRole" class="user-role"></div>
             </div>
           </div>
         </div>
         <div class="nav-right">
+          <button type="button" id="openStoreBtn" class="btn btn-secondary" style="margin-right: 10px;">
+            🛒 Store
+          </button>
           <button type="button" id="signOutBtn" class="btn btn-secondary">Sign Out</button>
         </div>
           </header>
-
-
 
       <div id="officeLayout" class="office-layout">
         <div id="officeMap" class="office-map">
@@ -249,7 +252,7 @@
 
         <aside id="sidePanel" class="side-panel">
           <div class="side-section">
-<div class="section-title">🎉 Company Events</div>
+          <div class="section-title">🎉 Company Events</div>
             <button id="addCompanyEventBtn" class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px;">+ Add Event</button>
             <div id="sidebarCompanyEvents" class="sidebar-list"></div>
           </div>
@@ -365,11 +368,44 @@
     </div>
   </div>
 
+<!-- Store Screen -->
+<div id="storeScreen" class="screen">
+  <div class="store-container-wrapper">
+    <header class="top-nav">
+      <div class="nav-left">
+        <button id="backFromStore" class="btn-icon" title="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
+        <div class="logo">Addy Store</div>
+      </div>
+      <div class="nav-center">
+        <div class="user-info">
+          <div id="storeUserAvatar" class="user-avatar-nav"></div>
+          <div class="user-details">
+            <div id="storeUserName" class="user-name"></div>
+            <div id="storeUserPoints" class="user-role"></div>
+          </div>
+        </div>
+      </div>
+      <div class="nav-right">
+        <button type="button" id="closeStoreBtn" class="btn btn-secondary">Close Store</button>
+      </div>
+    </header>
+
+    <div id="storeContent">
+      <!-- Store content will be rendered here by StoreApp.js -->
+    </div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
   window.SUPABASE_URL  = "https://guzdovkwgzgzdnswuoou.supabase.co";
   window.SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1emRvdmt3Z3pnemRuc3d1b291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NjQ1NTUsImV4cCI6MjA3MzU0MDU1NX0.MzbKYe9Icdss4qo7FctN-OAb_hzEBhrr0Gi8ZfkbyJc";
 </script>
 <script src="AddyApp.js"></script>
+<script src="Store/StoreApp.js"></script>
 </body>
 </html>

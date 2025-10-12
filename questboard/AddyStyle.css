@@ -557,3 +557,33 @@ button:focus, input:focus { outline: 2px solid #3b82f6; outline-offset: 2px; }
 .office-action-buttons .btn {
   white-space: nowrap;
 }
+
+/* Store Button */
+#openStoreBtn {
+  background: linear-gradient(135deg, #14b8a6, #06b6d4);
+  color: white;
+  font-weight: 700;
+  transition: all 0.3s;
+}
+
+#openStoreBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(20, 184, 166, 0.3);
+}
+
+/* Store Screen */
+#storeScreen {
+  background: #f8fafc;
+  flex-direction: column;
+}
+
+.store-container-wrapper {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#storeContent {
+  flex: 1;
+  overflow-y: auto;
+}

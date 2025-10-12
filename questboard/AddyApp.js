@@ -18,7 +18,6 @@ const state = {
   tempAvatar: null
 };
 
-
 // ---- Workspace helpers ----
 function buildEmptyWorkspace() {
   return {
@@ -135,7 +134,8 @@ function saveCurrentWorkspace(){
     setup: state.setup,
     avatars: state.avatars,
     teams: state.teams,
-    companyEvents: state.companyEvents || []
+    companyEvents: state.companyEvents || [],
+    storeData: state.storeData || null
   };
   store[state.workspace.id] = {
     id: state.workspace.id,
@@ -176,7 +176,15 @@ const $$ = (s)=>{
 const byId=(id)=>document.getElementById(id);
 
 /** Screens **/
-const screens={ signup: byId('signupScreen'), setup:byId('setupScreen'), avatar:byId('avatarScreen'), platform:byId('platformScreen'), team:byId('teamScreen') };
+const screens={ 
+  signup: byId('signupScreen'), 
+  setup:byId('setupScreen'), 
+  avatar:byId('avatarScreen'), 
+  platform:byId('platformScreen'), 
+  team:byId('teamScreen'),
+  store: byId('storeScreen') 
+};
+
 function showScreen(k){
   $$('.screen').forEach(s=>s.classList.remove('active'));
   if (screens[k]) {
@@ -514,59 +522,58 @@ function renderPlatformForUser(){
   if(navUserName) navUserName.textContent=u?.name || (state.workspace.type==='business'?'Not signed in':'');
   if(navUserRole) navUserRole.textContent=u?.role || '';
 
-// Render ALL avatars on screen in a horizontal line
-const map = byId('officeMap');
-if(map) {
-  // Remove ALL old characters
-  map.querySelectorAll('.user-character').forEach(c => c.remove());
-  
-  // Initialize positions for avatars if not set
-  if(!state.office.avatarPositions) {
-    state.office.avatarPositions = {};
+  // Render ALL avatars on screen in a horizontal line
+  const map = byId('officeMap');
+  if(map) {
+    // Remove ALL old characters
+    map.querySelectorAll('.user-character').forEach(c => c.remove());
+    
+    // Initialize positions for avatars if not set
+    if(!state.office.avatarPositions) {
+      state.office.avatarPositions = {};
+    }
+    
+    // Position avatars in a horizontal line below team boxes
+    const startX = 60;
+    const startY = 500; // Below the teams
+    const spacing = 100;
+    
+    // Create character for each avatar
+    state.avatars.forEach((avatar, idx) => {
+      // Set initial position if not exists
+      if(!state.office.avatarPositions[avatar.id]) {
+        state.office.avatarPositions[avatar.id] = {
+          x: startX + idx * spacing,
+          y: startY
+        };
+      }
+      
+      const char = document.createElement('div');
+      char.id = `char-${avatar.id}`;
+      char.className = 'user-character';
+      char.style.position = 'absolute';
+      char.style.left = state.office.avatarPositions[avatar.id].x + 'px';
+      char.style.top = state.office.avatarPositions[avatar.id].y + 'px';
+      
+      const ca = document.createElement('div');
+      ca.className = 'character-avatar';
+      const cn = document.createElement('div');
+      cn.className = 'character-name';
+      
+      char.appendChild(ca);
+      char.appendChild(cn);
+      map.appendChild(char);
+      
+      if(ca) ca.textContent = avatar.emoji || '•';
+      if(cn) cn.textContent = avatar.name || '';
+      
+      // Highlight current user with border
+      if(avatar.id === state.currentUserId) {
+        char.style.outline = '3px solid #4F46E5';
+        char.style.outlineOffset = '2px';
+      }
+    });
   }
-  
-  // Position avatars in a horizontal line below team boxes
-  const startX = 60;
-  const startY = 500; // Below the teams
-  const spacing = 100;
-  
-  // Create character for each avatar
-  state.avatars.forEach((avatar, idx) => {
-    // Set initial position if not exists
-    if(!state.office.avatarPositions[avatar.id]) {
-      state.office.avatarPositions[avatar.id] = {
-        x: startX + idx * spacing,
-        y: startY
-      };
-    }
-    
-    const char = document.createElement('div');
-    char.id = `char-${avatar.id}`;
-    char.className = 'user-character';
-    char.style.position = 'absolute';
-    char.style.left = state.office.avatarPositions[avatar.id].x + 'px';
-    char.style.top = state.office.avatarPositions[avatar.id].y + 'px';
-    
-    const ca = document.createElement('div');
-    ca.className = 'character-avatar';
-    const cn = document.createElement('div');
-    cn.className = 'character-name';
-    
-    char.appendChild(ca);
-    char.appendChild(cn);
-    map.appendChild(char);
-    
-    if(ca) ca.textContent = avatar.emoji || '•';
-    if(cn) cn.textContent = avatar.name || '';
-    
-    // Highlight current user with border
-    if(avatar.id === state.currentUserId) {
-      char.style.outline = '3px solid #4F46E5';
-      char.style.outlineOffset = '2px';
-    }
-  });
-}
-
 
   renderTeamRooms();
   renderSidebar();
@@ -574,7 +581,6 @@ if(map) {
   const createNewAvatarBtn = byId('createNewAvatarBtn');
   const employeeSignInBtn = byId('employeeSignInBtn');
   const createTeamBtn = byId('createTeamBtn');
-
   const signOutEmployeeBtn = byId('signOutEmployeeBtn');
   
   if(state.workspace.type==='personal'){
@@ -622,6 +628,19 @@ if(map) {
   if(addCompanyEventBtn) {
     addCompanyEventBtn.onclick = () => showCompanyEventsSimple();
   }
+  
+  // Store button
+  const openStoreBtn = byId('openStoreBtn');
+  if(openStoreBtn) {
+    openStoreBtn.onclick = () => {
+      console.log('Store button clicked!');
+      openStore();
+    };
+    console.log('✅ Store button connected successfully');
+  } else {
+    console.warn('⚠️ Store button (#openStoreBtn) not found in DOM');
+  }
+  
   startOfficeControls();
 }
 
@@ -2715,6 +2734,223 @@ window.handleCategoryInput=handleCategoryInput;
     }
   };
 })();
+
+/* ===========================
+   Store Integration
+   =========================== */
+function openStore() {
+  const user = getCurrentUser();
+  if (!user) {
+    toast('Please sign in first');
+    return;
+  }
+  
+  // Calculate total points from completed tasks
+  let totalPoints = 0;
+  Object.values(state.teams).forEach(team => {
+    const userTasks = team.tasks.filter(t => t.status === 'done' && t.assigneeId === user.id);
+    totalPoints += userTasks.reduce((sum, task) => sum + (task.points || 0), 0);
+  });
+  
+  // Initialize store data
+  if (!state.storeData) {
+    state.storeData = {
+      points: totalPoints,
+      ownedCharacters: ['char_14', 'char_15'],
+      ownedBackgrounds: ['bg_14', 'bg_15'],
+      currentCharacter: 'char_14',
+      currentBackground: 'bg_14'
+    };
+  } else {
+    state.storeData.points = totalPoints;
+  }
+  
+  // Update store header
+  const storeUserAvatar = byId('storeUserAvatar');
+  const storeUserName = byId('storeUserName');
+  const storeUserPoints = byId('storeUserPoints');
+  
+  if(storeUserAvatar) storeUserAvatar.textContent = user.emoji || '•';
+  if(storeUserName) storeUserName.textContent = user.name || '';
+  if(storeUserPoints) storeUserPoints.textContent = `${totalPoints} Points`;
+  
+  // Show store screen FIRST
+  showScreen('store');
+  
+  // Then initialize store UI - use setTimeout to ensure DOM is ready
+  setTimeout(() => {
+    if (window.initializeStore) {
+      console.log('Calling initializeStore with:', state.storeData);
+      window.initializeStore(state.storeData);
+    } else {
+      console.error('initializeStore is not available!');
+      // Fallback to inline render
+      renderStoreInline();
+    }
+  }, 100);
+  
+  // Setup close buttons
+  const closeBtn = byId('closeStoreBtn');
+  const backBtn = byId('backFromStore');
+  
+  if(closeBtn) {
+    closeBtn.onclick = () => {
+      showScreen('platform');
+      renderPlatformForUser();
+    };
+  }
+  
+  if(backBtn) {
+    backBtn.onclick = () => {
+      showScreen('platform');
+      renderPlatformForUser();
+    };
+  }
+}
+
+// Fallback render function if store.js fails to load
+function renderStoreInline() {
+  const storeContent = byId('storeContent');
+  if(!storeContent) {
+    console.error('storeContent element not found!');
+    return;
+  }
+  
+  const STORE_DATA = {
+    characters: [
+      { id: 'char_1', name: 'Winnie the Pooh', image: 'https://images.unsplash.com/photo-1611003228941-98852ba62227?w=400', price: 500, tier: 'premium' },
+      { id: 'char_2', name: 'Mickey Mouse', image: 'https://images.unsplash.com/photo-1566168051-48245ee5ba77?w=400', price: 500, tier: 'premium' },
+      { id: 'char_14', name: 'Smiley Face', image: 'https://images.unsplash.com/photo-1551298370-9d3d53740c72?w=400', price: 50, tier: 'common' },
+      { id: 'char_15', name: 'Star Icon', image: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?w=400', price: 50, tier: 'common' }
+    ]
+  };
+  
+  storeContent.innerHTML = `
+    <div style="padding: 2rem; max-width: 1400px; margin: 0 auto;">
+      <div style="text-align: center; margin-bottom: 2rem;">
+        <h1 style="font-size: 2.5rem; font-weight: bold; color: #1e293b; margin-bottom: 1rem;">
+          🛒 Welcome to Addy Store
+        </h1>
+        <p style="color: #64748b; font-size: 1.125rem;">Purchase amazing characters and backgrounds with the points you've earned!</p>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem;">
+        ${STORE_DATA.characters.map(item => {
+          const isOwned = state.storeData.ownedCharacters.includes(item.id);
+          const isCurrent = state.storeData.currentCharacter === item.id;
+          const canAfford = state.storeData.points >= item.price;
+          
+          return `
+            <div class="store-item-card" 
+                 onclick="handleStoreItemClick('${item.id}', 'character')"
+                 style="background: white; border-radius: 1rem; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.3s; border: 2px solid ${isCurrent ? '#14b8a6' : isOwned ? '#22c55e' : '#e5e7eb'};">
+              <div style="position: relative; height: 12rem; overflow: hidden;">
+                <img src="${item.image}" style="width: 100%; height: 100%; object-fit: cover;">
+                ${isCurrent ? '<div style="position: absolute; top: 0.5rem; right: 0.5rem; background: #14b8a6; color: white; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: bold;">Active</div>' : ''}
+                ${isOwned && !isCurrent ? '<div style="position: absolute; top: 0.5rem; right: 0.5rem; background: #22c55e; color: white; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.875rem; font-weight: bold;">Owned</div>' : ''}
+              </div>
+              <div style="padding: 1rem;">
+                <div style="display: inline-block; background: linear-gradient(to right, #14b8a6, #06b6d4); color: white; padding: 0.125rem 0.5rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: bold; margin-bottom: 0.5rem;">${item.tier}</div>
+                <h3 style="font-weight: bold; color: #1e293b; margin-bottom: 0.5rem;">${item.name}</h3>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <div style="display: flex; align-items: center; gap: 0.25rem;">
+                    <span style="color: #eab308;">⭐</span>
+                    <span style="font-weight: bold;">${item.price}</span>
+                  </div>
+                  <span style="font-size: 0.875rem; color: ${isCurrent ? '#14b8a6' : isOwned ? '#22c55e' : canAfford ? '#14b8a6' : '#dc2626'};">
+                    ${isCurrent ? 'Active' : isOwned ? 'Click to activate' : canAfford ? 'Click to buy' : 'Locked'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function handleStoreItemClick(itemId, type) {
+  const isOwned = type === 'character' 
+    ? state.storeData.ownedCharacters.includes(itemId)
+    : state.storeData.ownedBackgrounds.includes(itemId);
+  
+  if(isOwned) {
+    // Activate item
+    if(type === 'character') {
+      state.storeData.currentCharacter = itemId;
+    } else {
+      state.storeData.currentBackground = itemId;
+    }
+    saveCurrentWorkspace();
+    
+    // Re-render
+    if (window.initializeStore) {
+      window.initializeStore(state.storeData);
+    } else {
+      renderStoreInline();
+    }
+    
+    toast('Item activated! ✨');
+  } else {
+    // Try to purchase
+    const STORE_DATA = {
+      characters: [
+        { id: 'char_1', name: 'Winnie the Pooh', price: 500 },
+        { id: 'char_2', name: 'Mickey Mouse', price: 500 },
+        { id: 'char_14', name: 'Smiley Face', price: 50 },
+        { id: 'char_15', name: 'Star Icon', price: 50 }
+      ]
+    };
+    
+    const item = STORE_DATA.characters.find(i => i.id === itemId);
+    if(!item) return;
+    
+    if(state.storeData.points >= item.price) {
+      if(confirm(`Purchase ${item.name} for ${item.price} points?`)) {
+        state.storeData.points -= item.price;
+        if(type === 'character') {
+          state.storeData.ownedCharacters.push(itemId);
+          state.storeData.currentCharacter = itemId;
+        }
+        saveCurrentWorkspace();
+        
+        // Update header points
+        const storeUserPoints = byId('storeUserPoints');
+        if(storeUserPoints) storeUserPoints.textContent = `${state.storeData.points} Points`;
+        
+        // Re-render
+        if (window.initializeStore) {
+          window.initializeStore(state.storeData);
+        } else {
+          renderStoreInline();
+        }
+        
+        toast(`Purchased ${item.name}! 🎉`);
+      }
+    } else {
+      toast('Not enough points! Complete more tasks to earn points.');
+    }
+  }
+}
+
+// Receive updates from store
+window.updateStoreDataInMainApp = function(storeData) {
+  state.storeData = storeData;
+  
+  const user = getCurrentUser();
+  if (user && storeData.currentCharacter) {
+    console.log('User selected character:', storeData.currentCharacter);
+  }
+  
+  saveCurrentWorkspace();
+  
+  const storeUserPoints = byId('storeUserPoints');
+  if(storeUserPoints) storeUserPoints.textContent = `${storeData.points} Points`;
+};
+
+// Make handleStoreItemClick global
+window.handleStoreItemClick = handleStoreItemClick;
 
 /* ===========================
    Initial Load
