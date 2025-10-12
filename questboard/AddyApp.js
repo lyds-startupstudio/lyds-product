@@ -433,11 +433,25 @@ function prepareAvatarScreen(isPersonalCreation=false){
   if(avatarBackBtn) avatarBackBtn.onclick = goBack;
   if(cancelAvatarBtn) cancelAvatarBtn.onclick = goBack;
 
+  // Show team leader checkbox when team is selected
+const teamSelect = byId('userTeam');
+const teamLeaderCheckGroup = byId('teamLeaderCheckGroup');
+if(teamSelect && teamLeaderCheckGroup && isBiz) {
+  teamSelect.addEventListener('change', () => {
+    if(teamSelect.value) {
+      teamLeaderCheckGroup.style.display = 'block';
+    } else {
+      teamLeaderCheckGroup.style.display = 'none';
+    }
+  });
+}
+
   // STEP 1 Form
   if(form1){
     form1.onsubmit=(e)=>{
       e.preventDefault();
       const name=byId('userName')?.value.trim();
+      
       const role=byId('jobTitle')?.value.trim() || (isBiz ? 'Manager' : 'Personal User');
       const team=isBiz ? byId('userTeam')?.value : null;
 
@@ -448,15 +462,18 @@ function prepareAvatarScreen(isPersonalCreation=false){
       const selectedEl = byId('avatarGrid')?.querySelector('.avatar-option.selected');
       const emoji = selectedEl?.textContent?.trim() || DEFAULT_AVATARS[0];
       
-      // Store temp data
-      state.tempAvatar = {
-        id: generateId('avt'),
-        name,
-        role,
-        emoji,
-        team,
-        isTeamLead: false
-      };
+// Get team leader status
+const isTeamLeader = isBiz && byId('isTeamLeader')?.checked;
+
+// Store temp data
+state.tempAvatar = {
+  id: generateId('avt'),
+  name,
+  role,
+  emoji,
+  team,
+  isTeamLead: isTeamLeader || false
+};
 
       // Business: go to step 2 (credentials)
       // Personal: create avatar immediately
@@ -522,21 +539,25 @@ function finishAvatarCreation(isPersonalCreation){
   
   state.avatars.push(avatar);
 
-  // Add to team
-  if(avatar.team) {
-    console.log('Avatar has team:', avatar.team);
-    ensureTeamExists(avatar.team);
-    console.log('Team before adding member:', JSON.stringify(state.teams[avatar.team]));
-    
-    if(!state.teams[avatar.team].members.includes(avatar.id)) {
-      state.teams[avatar.team].members.push(avatar.id);
-    }
-    if(!state.teams[avatar.team].leadId){ 
-      state.teams[avatar.team].leadId = avatar.id; 
-      avatar.isTeamLead = true; 
-    }
-    console.log('Team after adding member:', JSON.stringify(state.teams[avatar.team]));
+if(avatar.team) {
+  console.log('Avatar has team:', avatar.team);
+  ensureTeamExists(avatar.team);
+  console.log('Team before adding member:', JSON.stringify(state.teams[avatar.team]));
+  
+  if(!state.teams[avatar.team].members.includes(avatar.id)) {
+    state.teams[avatar.team].members.push(avatar.id);
   }
+  
+  // Set as team lead if checkbox was checked
+  if(avatar.isTeamLead) {
+    state.teams[avatar.team].leadId = avatar.id;
+  } else if(!state.teams[avatar.team].leadId) {
+    // If no lead exists yet and this is the first member, make them lead
+    state.teams[avatar.team].leadId = avatar.id;
+    avatar.isTeamLead = true;
+  }
+  console.log('Team after adding member:', JSON.stringify(state.teams[avatar.team]));
+}
 
   // **CRITICAL FIX: If this is the first avatar in a business workspace, add to management**
   if(state.workspace.type === 'business' && state.avatars.length === 1) {
@@ -849,6 +870,36 @@ function renderSidebar(){
     ).join('') || `<div class="empty">No teams yet</div>`;
   }
 
+  // Add "Add Team Member" button below employees section
+const employeeSection = document.querySelector('.side-section:has(#sidebarEmployeeList)');
+if(employeeSection && state.workspace.type === 'business') {
+  // Remove old button if exists
+  const oldAddBtn = employeeSection.querySelector('#addTeamMemberBtn');
+  if(oldAddBtn) oldAddBtn.remove();
+  
+  const currentUser = getCurrentUser();
+  const canAddEmployees = currentUser && canPerformAction(currentUser.id, 'manageEmployees');
+  
+  if(canAddEmployees) {
+    const addBtn = document.createElement('button');
+    addBtn.id = 'addTeamMemberBtn';
+    addBtn.className = 'btn btn-primary btn-sm';
+    addBtn.textContent = '+ Add Team Member';
+    addBtn.style.width = '100%';
+    addBtn.style.marginTop = '8px';
+    addBtn.onclick = () => {
+      stopOfficeControls();
+      prepareAvatarScreen(false);
+      showScreen('avatar');
+    };
+    
+    const searchInput = employeeSection.querySelector('#employeeSearch');
+    if(searchInput && searchInput.parentNode) {
+      searchInput.parentNode.insertBefore(addBtn, searchInput);
+    }
+  }
+}
+
   const search=byId('employeeSearch'), list=byId('sidebarEmployeeList');
   const refresh=()=>{
     const q=(search?.value||'').toLowerCase();
@@ -862,11 +913,13 @@ list.innerHTML = filtered.map(a=>`
     <div onclick="selectAvatarForControl('${a.id}')" style="display:flex;gap:10px;align-items:center;flex:1;cursor:pointer;" title="Click to control this avatar">
 
           <div class="emp-avatar">${a.emoji}</div>
-            <div class="emp-info">
-              <div class="emp-name">${a.name}${isLead(a)?' <span class="lead-star">★</span>':''}</div>
-              <div class="emp-meta">${a.role}${a.team?' · '+a.team:''}</div>
+
+<div class="emp-info">
+  <div class="emp-name">${a.name}${isLead(a)?' <span class="lead-star">★</span>':''}</div>
+  <div class="emp-meta">${a.role}${a.team?' · '+a.team:''}${isLead(a)?' · <strong style="color:#4F46E5;">Team Leader</strong>':''}</div>
+</div>
+
             </div>
-          </div>
           ${canDeleteEmployees ? `<button class="delete-employee-btn" data-id="${a.id}" onclick="event.stopPropagation(); deleteEmployee('${a.id}')" style="background:none;border:none;cursor:pointer;padding:4px;color:#EF4444;font-size:16px;">🗑️</button>` : ''}
         </div>`).join('') || `<div class="empty">No employees</div>`;
     }
@@ -1998,10 +2051,6 @@ if(status==='todo' && !task.assigneeId && !isPersonal && team.members.length > 0
 
 function showAddTaskModal(teamName, targetStatus = 'backlog'){
   const currentUser = getCurrentUser();
-  if(!currentUser || !canManageTasks(currentUser.id, teamName)) {
-    toast('You do not have permission to add tasks');
-    return;
-  }
 
   ensureTeamExists(teamName);
   const team=state.teams[teamName];
@@ -2289,15 +2338,16 @@ function showTeamEventsModal(teamName){
           
           // Attach RSVP handlers
           list.querySelectorAll('.rsvp-btn').forEach(btn => {
-            btn.onclick = () => {
-              const eventId = btn.getAttribute('data-event-id');
-              const response = btn.getAttribute('data-response');
-              const userId = state.currentUserId;
-              
-              if(!userId) {
-                toast('Please select a user first');
-                return;
-              }
+btn.onclick = () => {
+  const eventId = btn.getAttribute('data-event-id');
+  const response = btn.getAttribute('data-response');
+  // Use controlled avatar or current user
+  const userId = state.office.controlledAvatarId || state.currentUserId;
+  
+  if(!userId) {
+    toast('Please click on an employee in the list to select them first');
+    return;
+  }
               
               const event = team.events.find(e => e.id === eventId);
               if(event) {
@@ -2449,10 +2499,10 @@ function showCompanyEventsSimple(){
           });
           
           list.querySelectorAll('.company-rsvp-btn').forEach(btn => {
-            btn.onclick = () => {
-              const eventId = btn.getAttribute('data-event-id');
-              const response = btn.getAttribute('data-response');
-              const userId = state.currentUserId;
+btn.onclick = () => {
+  const eventId = btn.getAttribute('data-event-id');
+  const response = btn.getAttribute('data-response');
+  const userId = state.office.controlledAvatarId || state.currentUserId;
               
               if(!userId) {
                 toast('Please select a user first');
@@ -2767,14 +2817,17 @@ function showEventDetailModal(eventId) {
         </div>
       `;
       
-      ['yes', 'no', 'maybe'].forEach(response => {
-        const btn = byId(`rsvp${response.charAt(0).toUpperCase() + response.slice(1)}`);
-        if(btn) {
-          btn.onclick = () => {
-            if(!userId) {
-              toast('Please select a user first');
-              return;
-            }
+['yes', 'no', 'maybe'].forEach(response => {
+  const btn = byId(`rsvp${response.charAt(0).toUpperCase() + response.slice(1)}`);
+  if(btn) {
+    btn.onclick = () => {
+      const userId = state.office.controlledAvatarId || state.currentUserId;
+      if(!userId) {
+        toast('Please click on an employee in the list to select them first');
+        return;
+      }
+
+
             if(!event.responses) event.responses = {};
             event.responses[userId] = response;
             saveCurrentWorkspace();
