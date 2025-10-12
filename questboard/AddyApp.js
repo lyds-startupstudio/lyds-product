@@ -665,47 +665,84 @@ if(map) {
   renderTeamRooms();
   renderSidebar();
 
-  const createNewAvatarBtn = byId('createNewAvatarBtn');
-  const employeeSignInBtn = byId('employeeSignInBtn');
-  const createTeamBtn = byId('createTeamBtn');
+const createNewAvatarBtn = byId('createNewAvatarBtn');
+const employeeSignInBtn = byId('employeeSignInBtn');
+const createTeamBtn = byId('createTeamBtn');
+const signOutEmployeeBtn = byId('signOutEmployeeBtn');
 
-  const signOutEmployeeBtn = byId('signOutEmployeeBtn');
+
+if(state.workspace.type==='personal'){
+  if(createNewAvatarBtn) createNewAvatarBtn.style.display='none';
+  if(employeeSignInBtn) employeeSignInBtn.style.display='none';
+  if(createTeamBtn) createTeamBtn.style.display='none';
+  if(signOutEmployeeBtn) signOutEmployeeBtn.style.display='none';
+}else{
+const currentUser = getCurrentUser();
+
+// Check if user is a team leader (when signed in)
+const isTeamLeader = currentUser && Object.values(state.teams).some(team => 
+  team.leadId === currentUser.id || 
+  (team.leadIds && Array.isArray(team.leadIds) && team.leadIds.includes(currentUser.id))
+);
+
+// Check if any avatar is in management (even if not signed in)
+const hasManagementUser = state.management && state.management.members && state.management.members.length > 0;
+
+const canCreateEmployees = (currentUser && (canPerformAction(currentUser.id, 'manageEmployees') || isTeamLeader)) || hasManagementUser;
+const canCreateTeams     = currentUser && canPerformAction(currentUser.id, 'manageTeams');
+
+// Add "Add Team Member" button dynamically - make sure it's created every time
+const actionButtonsContainer = document.querySelector('.office-action-buttons');
+let addTeamMemberBtn = byId('addTeamMemberBtn');
+
+// Remove old button if it exists
+if(addTeamMemberBtn) {
+  addTeamMemberBtn.remove();
+}
+
+// Create new button
+if(actionButtonsContainer && canCreateEmployees) {
+  addTeamMemberBtn = document.createElement('button');
+  addTeamMemberBtn.id = 'addTeamMemberBtn';
+  addTeamMemberBtn.type = 'button';
+  addTeamMemberBtn.className = 'btn btn-secondary';
+  addTeamMemberBtn.textContent = '+ Add Team Member';
+  addTeamMemberBtn.style.display = 'inline-flex';
+  addTeamMemberBtn.onclick = ()=>{ 
+    stopOfficeControls(); 
+    prepareAvatarScreen(false); 
+    showScreen('avatar'); 
+  };
   
-  if(state.workspace.type==='personal'){
-    if(createNewAvatarBtn) createNewAvatarBtn.style.display='none';
-    if(employeeSignInBtn) employeeSignInBtn.style.display='none';
-    if(createTeamBtn) createTeamBtn.style.display='none';
-    if(signOutEmployeeBtn) signOutEmployeeBtn.style.display='none';
-  }else{
-  const currentUser = getCurrentUser();
-  const canCreateEmployees = currentUser && canPerformAction(currentUser.id, 'manageEmployees');
-  const canCreateTeams     = currentUser && canPerformAction(currentUser.id, 'manageTeams');
-
-  if(createNewAvatarBtn){
-    // show only if has permission to manage employees
-    createNewAvatarBtn.style.display = canCreateEmployees ? 'inline-flex' : 'none';
-    createNewAvatarBtn.onclick = ()=>{ 
-      stopOfficeControls(); 
-      prepareAvatarScreen(false); 
-      showScreen('avatar'); 
-    };
-  }
-  if(employeeSignInBtn){
-    // show only if not signed in
-    employeeSignInBtn.style.display = state.currentUserId ? 'none' : 'inline-flex';
-    employeeSignInBtn.onclick = ()=>showEmployeeSignInModal();
-  }
-  if(signOutEmployeeBtn){
-    // "Sign Out Employee" only when signed in as employee
-    signOutEmployeeBtn.style.display = state.currentUserId ? 'inline-flex' : 'none';
-    signOutEmployeeBtn.onclick = ()=>signOutEmployee();
-  }
-  if(createTeamBtn){
-    // show only if has permission to manage teams
-    createTeamBtn.style.display = canCreateTeams ? 'inline-flex' : 'none';
-    createTeamBtn.onclick = ()=>showCreateTeamModal();
+  // Insert BEFORE employeeSignInBtn
+  if(employeeSignInBtn && employeeSignInBtn.parentNode === actionButtonsContainer) {
+    actionButtonsContainer.insertBefore(addTeamMemberBtn, employeeSignInBtn);
+  } else {
+    actionButtonsContainer.appendChild(addTeamMemberBtn);
   }
 }
+
+if(createNewAvatarBtn){
+  createNewAvatarBtn.style.display = 'none'; // Hide this one, we're using addTeamMemberBtn instead
+}
+if(employeeSignInBtn){
+  // show only if not signed in
+  employeeSignInBtn.style.display = state.currentUserId ? 'none' : 'inline-flex';
+  employeeSignInBtn.onclick = ()=>showEmployeeSignInModal();
+}
+if(signOutEmployeeBtn){
+  // "Sign Out Employee" only when signed in as employee
+  signOutEmployeeBtn.style.display = state.currentUserId ? 'inline-flex' : 'none';
+  signOutEmployeeBtn.onclick = ()=>signOutEmployee();
+}
+if(createTeamBtn){
+  // show only if has permission to manage teams
+  createTeamBtn.style.display = canCreateTeams ? 'inline-flex' : 'none';
+  createTeamBtn.onclick = ()=>showCreateTeamModal();
+}
+}
+
+
 
   
   const signOutBtn = byId('signOutBtn');
@@ -900,32 +937,58 @@ if(employeeSection && state.workspace.type === 'business') {
   }
 }
 
-  const search=byId('employeeSearch'), list=byId('sidebarEmployeeList');
-  const refresh=()=>{
-    const q=(search?.value||'').toLowerCase();
-    const filtered=state.avatars.filter(a=>a.name.toLowerCase().includes(q));
-    if(list){
-      const currentUser = getCurrentUser();
-      const canDeleteEmployees = currentUser && canPerformAction(currentUser.id, 'manageEmployees');
+const search=byId('employeeSearch'), list=byId('sidebarEmployeeList');
+const refresh=()=>{
+  const q=(search?.value||'').toLowerCase();
+  const filtered=state.avatars.filter(a=>a.name.toLowerCase().includes(q));
+  if(list){
+    const currentUser = getCurrentUser();
+    const canDeleteEmployees = currentUser && canPerformAction(currentUser.id, 'manageEmployees');
 
-list.innerHTML = filtered.map(a=>`
-  <div class="employee-item" data-id="${a.id}" style="display:flex;justify-content:space-between;align-items:center;">
-    <div onclick="selectAvatarForControl('${a.id}')" style="display:flex;gap:10px;align-items:center;flex:1;cursor:pointer;" title="Click to control this avatar">
-
+    list.innerHTML = filtered.map(a=>`
+      <div class="employee-item" data-id="${a.id}" style="display:flex;justify-content:space-between;align-items:center;">
+        <div onclick="selectAvatarForControl('${a.id}')" style="display:flex;gap:10px;align-items:center;flex:1;cursor:pointer;" title="Click to control this avatar">
           <div class="emp-avatar">${a.emoji}</div>
+          <div class="emp-info">
+            <div class="emp-name">${a.name}${isLead(a)?' <span class="lead-star">★</span>':''}</div>
+            <div class="emp-meta">${a.role}${a.team?' · '+a.team:''}${isLead(a)?' · <strong style="color:#4F46E5;">Team Leader</strong>':''}</div>
+          </div>
+        </div>
+        ${canDeleteEmployees ? `<button class="delete-employee-btn" data-id="${a.id}" onclick="event.stopPropagation(); deleteEmployee('${a.id}')" style="background:none;border:none;cursor:pointer;padding:4px;color:#EF4444;font-size:16px;">🗑️</button>` : ''}
+      </div>`).join('') || `<div class="empty">No employees</div>`;
+  }
+};
+if(search) search.oninput=refresh;
+refresh();
 
-<div class="emp-info">
-  <div class="emp-name">${a.name}${isLead(a)?' <span class="lead-star">★</span>':''}</div>
-  <div class="emp-meta">${a.role}${a.team?' · '+a.team:''}${isLead(a)?' · <strong style="color:#4F46E5;">Team Leader</strong>':''}</div>
-</div>
-
-            </div>
-          ${canDeleteEmployees ? `<button class="delete-employee-btn" data-id="${a.id}" onclick="event.stopPropagation(); deleteEmployee('${a.id}')" style="background:none;border:none;cursor:pointer;padding:4px;color:#EF4444;font-size:16px;">🗑️</button>` : ''}
-        </div>`).join('') || `<div class="empty">No employees</div>`;
-    }
-  };
-  if(search) search.oninput=refresh;
-  refresh();
+// Add Team Member button below the employee list
+if(state.workspace.type === 'business' && list) {
+  const currentUser = getCurrentUser();
+  const canAddEmployees = currentUser && canPerformAction(currentUser.id, 'manageEmployees');
+  
+  // Find the parent side-section container
+  const sideSection = list.closest('.side-section');
+  
+  // Remove old button if exists
+  const oldAddBtn = sideSection?.querySelector('#addTeamMemberBtn');
+  if(oldAddBtn) oldAddBtn.remove();
+  
+  if(canAddEmployees && sideSection) {
+    const addBtn = document.createElement('button');
+    addBtn.id = 'addTeamMemberBtn';
+    addBtn.className = 'btn btn-primary btn-sm';
+    addBtn.textContent = '+ Add Team Member';
+    addBtn.style.cssText = 'width:100%;margin-top:12px;';
+    addBtn.onclick = ()=>{
+      stopOfficeControls();
+      prepareAvatarScreen(false);
+      showScreen('avatar');
+    };
+    
+    // Append button to the side-section
+    sideSection.appendChild(addBtn);
+  }
+}
 }
 
 
