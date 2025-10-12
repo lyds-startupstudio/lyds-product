@@ -1,59 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Addy - Gamified Team Management</title>
-    <link rel="stylesheet" href="AddyStyle.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Addy - Gamified Team Management</title>
+  <link rel="stylesheet" href="AddyStyle.css"/>
 </head>
 <body>
   <!-- Sign Up Screen - FIRST SCREEN -->
-  <div id="signupScreen" class="screen active">
-    <div class="setup-container">
-      <div class="setup-header">
-        <div class="setup-topbar">
-          <button id="haveAccountBtn" class="btn btn-secondary btn-auth">Already have an account? Sign In</button>
-        </div>
-        <h1 class="setup-title">Create Your Account</h1>
-        <p class="setup-subtitle">Get started with Addy</p>
+<div id="signupScreen" class="screen active">
+  <div class="setup-container">
+    <div class="setup-header">
+      <div class="setup-topbar">
+        <button id="haveAccountBtn" class="btn btn-secondary btn-auth">Already have an account? Sign In</button>
       </div>
-      
-      <div class="setup-content" style="justify-content:center;">
-        <div style="max-width:400px;width:100%;margin:0 auto;">
-          <div style="margin-bottom:16px;padding:12px;background:#f0f9ff;border-radius:8px;font-size:13px;">
-            Create your account to start using Addy
+      <h1 class="setup-title">Create Your Account</h1>
+      <p class="setup-subtitle">Get started with Addy</p>
+    </div>
+
+    <div class="setup-content" style="justify-content:center;">
+      <div style="max-width:400px;width:100%;margin:0 auto;">
+        <div style="margin-bottom:16px;padding:12px;background:#f0f9ff;border-radius:8px;font-size:13px;">
+          💡 Create your account to start using Addy
+        </div>
+        
+        <form id="initialSignupForm">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input id="signupEmail" type="email" class="form-control" placeholder="you@example.com" required>
           </div>
           
-          <form id="initialSignupForm">
-            <div class="form-group">
-              <label class="form-label">Email</label>
-              <input id="signupEmail" type="email" class="form-control" placeholder="you@example.com" required>
-            </div>
-
           <div class="form-group">
             <label class="form-label">Password</label>
             <input id="signupPassword" type="password" class="form-control" placeholder="Choose a strong password (min 8 characters)" required>
           </div>
-          <div class="form-group">
-            <label class="form-label">Security Question</label>
-            <select id="signupSecurityQuestion" class="form-control" required>
-              <option value="">Choose a security question</option>
-              <option value="What was the name of your first pet?">What was the name of your first pet?</option>
-              <option value="What city were you born in?">What city were you born in?</option>
-              <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Security Answer</label>
-            <input id="signupSecurityAnswer" type="text" class="form-control" placeholder="Your answer" required>
-          </div>
+          
           <button type="submit" class="btn btn-primary" style="width:100%;margin-top:16px;">Create Account & Continue</button>
-
-          </form>
-        </div>
+        </form>
       </div>
     </div>
   </div>
+</div>
 
   <!-- Setup Screen -->
   <div id="setupScreen" class="screen">
@@ -67,7 +54,7 @@
         <p class="setup-subtitle">Let's customize your workspace</p>
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
       </div>
-      
+
       <div class="setup-content">
         <!-- Step 1 -->
         <div class="step active" id="step1">
@@ -79,7 +66,7 @@
               <p class="option-description">Manage your own tasks, projects, and personal goals</p>
             </div>
             <div class="option-card" onclick="selectOption('userType','business',this)">
-              <span class="option-icon">👥</span>
+              <span class="option-icon">🏢</span>
               <h3 class="option-title">Business/Team</h3>
               <p class="option-description">Manage team tasks, collaborate with colleagues</p>
             </div>
@@ -91,11 +78,11 @@
           <h2 class="step-title">What type of business are you?</h2>
           <div class="option-grid">
             <div class="option-card" onclick="selectOption('businessType','tech',this)"><span class="option-icon">💻</span><h3 class="option-title">Tech Company</h3></div>
-            <div class="option-card" onclick="selectOption('businessType','retail',this)"><span class="option-icon">🛒</span><h3 class="option-title">Retail/E-commerce</h3></div>
-            <div class="option-card" onclick="selectOption('businessType','hospitality',this)"><span class="option-icon">🏨</span><h3 class="option-title">Hospitality</h3></div>
-            <div class="option-card" onclick="selectOption('businessType','professional',this)"><span class="option-icon">💼</span><h3 class="option-title">Professional Services</h3></div>
+            <div class="option-card" onclick="selectOption('businessType','retail',this)"><span class="option-icon">🛍️</span><h3 class="option-title">Retail/E-commerce</h3></div>
+            <div class="option-card" onclick="selectOption('businessType','hospitality',this)"><span class="option-icon">☕</span><h3 class="option-title">Hospitality</h3></div>
+            <div class="option-card" onclick="selectOption('businessType','professional',this)"><span class="option-icon">📊</span><h3 class="option-title">Professional Services</h3></div>
             <div class="option-card" onclick="selectOption('businessType','creative',this)"><span class="option-icon">🎨</span><h3 class="option-title">Creative Industry</h3></div>
-            <div class="option-card" onclick="selectOption('businessType','other',this)"><span class="option-icon">📋</span><h3 class="option-title">Other</h3></div>
+            <div class="option-card" onclick="selectOption('businessType','other',this)"><span class="option-icon">🏭</span><h3 class="option-title">Other</h3></div>
           </div>
         </div>
 
@@ -103,10 +90,10 @@
         <div class="step" id="step2b">
           <h2 class="step-title">What's your main goal?</h2>
           <div class="option-grid">
-            <div class="option-card" onclick="selectOption('personalPurpose','productivity',this)"><span class="option-icon">📈</span><h3 class="option-title">Personal Productivity</h3></div>
+            <div class="option-card" onclick="selectOption('personalPurpose','productivity',this)"><span class="option-icon">⚡</span><h3 class="option-title">Personal Productivity</h3></div>
             <div class="option-card" onclick="selectOption('personalPurpose','study',this)"><span class="option-icon">📚</span><h3 class="option-title">Study & Learning</h3></div>
-            <div class="option-card" onclick="selectOption('personalPurpose','freelance',this)"><span class="option-icon">💻</span><h3 class="option-title">Freelance Work</h3></div>
-            <div class="option-card" onclick="selectOption('personalPurpose','creative',this)"><span class="option-icon">🎨</span><h3 class="option-title">Creative Projects</h3></div>
+            <div class="option-card" onclick="selectOption('personalPurpose','freelance',this)"><span class="option-icon">💼</span><h3 class="option-title">Freelance Work</h3></div>
+            <div class="option-card" onclick="selectOption('personalPurpose','creative',this)"><span class="option-icon">🎯</span><h3 class="option-title">Creative Projects</h3></div>
           </div>
         </div>
 
@@ -117,7 +104,7 @@
             <label class="form-label">Add your teams</label>
             <div class="tag-input-container" onclick="focusTagInput()">
               <div id="teamTags"></div>
-              <input id="teamInput" class="tag-input" type="text" placeholder="Type team name and press Enter" onkeypress="handleTeamInput(event)">
+              <input id="teamInput" class="tag-input" type="text" placeholder="Type team name and press Enter" onkeypress="handleTeamInput(event)"/>
             </div>
           </div>
         </div>
@@ -129,16 +116,16 @@
             <label class="form-label">Add your task categories</label>
             <div class="tag-input-container" onclick="focusTagInput()">
               <div id="categoryTags"></div>
-              <input id="categoryInput" class="tag-input" type="text" placeholder="Type category name and press Enter" onkeypress="handleCategoryInput(event)">
+              <input id="categoryInput" class="tag-input" type="text" placeholder="Type category name and press Enter" onkeypress="handleCategoryInput(event)"/>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="button-group">
-        <button id="prevBtn" class="btn btn-secondary" onclick="previousStep()" style="display:none;">Previous</button>
-        <div></div>
-        <button id="nextBtn" class="btn btn-primary" onclick="nextStep()" disabled>Next</button>
+        <div class="button-group">
+          <button id="prevBtn" class="btn btn-secondary" onclick="previousStep()" style="display:none;">Previous</button>
+          <div></div>
+          <button id="nextBtn" class="btn btn-primary" onclick="nextStep()" disabled>Next</button>
+        </div>
       </div>
     </div>
   </div>
@@ -152,29 +139,16 @@
         <!-- STEP 1: Basic Info + Avatar Selection -->
         <div id="avatarStep1" class="avatar-step">
           <h1 class="avatar-title">Create Your Avatar</h1>
-          
           <form id="avatarStep1Form" class="avatar-form">
             <div class="form-group">
               <label class="form-label">Your Name</label>
-              <input id="userName" class="form-control" placeholder="Enter your name" required>
+              <input id="userName" class="form-control" placeholder="Enter your name" required/>
             </div>
-
+            
             <div class="form-group">
               <label class="form-label">Job Title</label>
-              <input id="jobTitle" class="form-control" placeholder="Enter your role" required>
+              <input id="jobTitle" class="form-control" placeholder="Enter your role" required/>
             </div>
-
-            <div class="form-group">
-  <label class="form-label">Job Title</label>
-  <input id="jobTitle" class="form-control" placeholder="Enter your role" required>
-</div>
-
-<div class="form-group" id="teamLeaderCheckGroup" style="display:none;">
-  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-    <input type="checkbox" id="isTeamLeader" style="width:auto;">
-    <span>This employee is a Team Leader</span>
-  </label>
-</div>
 
             <div class="form-group" id="teamSelectionGroup" style="display:none;">
               <label class="form-label">Select Your Team</label>
@@ -198,27 +172,28 @@
         <!-- STEP 2: Employee Credentials (Business Only) -->
         <div id="avatarStep2" class="avatar-step" style="display:none;">
           <h1 class="avatar-title">Employee Login Credentials</h1>
-          
           <form id="avatarStep2Form" class="avatar-form">
             <div style="margin-bottom:16px;padding:12px;background:#f0f9ff;border-radius:8px;font-size:13px;">
-              Set up login credentials for this employee
+              💡 Set up login credentials for this employee
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Employee Email</label>
+              <input id="avatarEmail" type="email" class="form-control" placeholder="employee@company.com" required/>
             </div>
             
             <div class="form-group">
-              <label class="form-label">Employee Email</label>
-              <input id="avatarEmail" type="email" class="form-control" placeholder="employee@company.com" required>
-            </div>
-            <div class="form-group">
               <label class="form-label">Password</label>
-              <input id="avatarPassword" type="password" class="form-control" placeholder="Choose a password (min 8 characters)" required>
+              <input id="avatarPassword" type="password" class="form-control" placeholder="Choose a password (min 8 characters)" required/>
             </div>
+            
             <div class="form-group">
               <label class="form-label">Internal Username (optional)</label>
-              <input id="avatarUsername" class="form-control" placeholder="e.g., john.doe">
+              <input id="avatarUsername" class="form-control" placeholder="e.g., john.doe"/>
             </div>
 
             <div class="avatar-actions">
-              <button type="button" class="btn btn-secondary" id="backToStep1Btn">← Back</button>
+              <button type="button" class="btn btn-secondary" id="backToStep1Btn">Back</button>
               <button type="submit" class="btn btn--primary quest-button">
                 <span>Create Employee</span>
                 <div class="button-shine"></div>
@@ -233,17 +208,16 @@
   <!-- Platform -->
   <div id="platformScreen" class="screen">
     <div class="platform-container">
+
       <header class="top-nav">
-        <div class="nav-left">
-          <button id="backToPlatform" class="btn-icon" style="display:none;" title="Back">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 12H5M12 19l-7-7 7-7"/>
-            </svg>
-          </button>
-          <div class="logo">Addy</div>
-        </div>
-        
-        <div class="nav-center">
+<div class="nav-left">
+  <button id="backToPlatform" class="btn-icon" style="display:none;" title="Back">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M19 12H5M12 19l-7-7 7-7"/>
+    </svg>
+  </button>
+  <div class="logo">Addy</div>
+</div>        <div class="nav-center">
           <div class="user-info">
             <div id="navUserAvatar" class="user-avatar-nav"></div>
             <div class="user-details">
@@ -252,12 +226,12 @@
             </div>
           </div>
         </div>
-        
         <div class="nav-right">
-          <button type="button" id="customizeBtn" class="btn btn-secondary" style="margin-right: 8px;">🎨 Customize</button>
           <button type="button" id="signOutBtn" class="btn btn-secondary">Sign Out</button>
         </div>
-      </header>
+          </header>
+
+
 
       <div id="officeLayout" class="office-layout">
         <div id="officeMap" class="office-map">
@@ -267,37 +241,37 @@
           </div>
           <div id="teamRoomsContainer"></div>
         </div>
-        
+
         <div class="game-instructions">
-          <div class="instruction">Use ↑↓←→ or WASD to move</div>
+          <div class="instruction">Use ← → ↑ ↓ or WASD to move</div>
           <div class="instruction">Go near a team room and press E to enter</div>
         </div>
-      </div>
 
-      <aside id="sidePanel" class="side-panel">
-        <div class="side-section">
-          <div class="section-title">📅 Company Events</div>
-          <button id="addCompanyEventBtn" class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px;">+ Add Event</button>
-          <div id="sidebarCompanyEvents" class="sidebar-list"></div>
-        </div>
-        
-        <div class="side-section">
-          <div class="section-title">Teams - Leaderboard</div>
-          <div id="sidebarTeamList" class="sidebar-list"></div>
-        </div>
-        
-        <div class="side-section">
-          <div class="section-title">Employees</div>
-          <input id="employeeSearch" class="form-control form-control--sm" placeholder="Search employee...">
-          <div id="sidebarEmployeeList" class="sidebar-list"></div>
-        </div>
-      </aside>
+        <aside id="sidePanel" class="side-panel">
+          <div class="side-section">
+<div class="section-title">🎉 Company Events</div>
+            <button id="addCompanyEventBtn" class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px;">+ Add Event</button>
+            <div id="sidebarCompanyEvents" class="sidebar-list"></div>
+          </div>
 
-      <div class="office-action-buttons">
-        <button type="button" id="employeeSignInBtn" class="btn btn-secondary">Employee Sign In</button>
-        <button type="button" id="signOutEmployeeBtn" class="btn btn-secondary" style="display:none;">Sign Out Employee</button>
-        <button type="button" id="createNewAvatarBtn" class="btn btn-secondary">Create New Avatar</button>
-        <button type="button" id="createTeamBtn" class="btn btn-secondary">Create Team</button>
+          <div class="side-section">
+            <div class="section-title">Teams - Leaderboard</div>
+            <div id="sidebarTeamList" class="sidebar-list"></div>
+          </div>
+
+          <div class="side-section">
+            <div class="section-title">Employees</div>
+            <input id="employeeSearch" class="form-control form-control--sm" placeholder="Search employee..."/>
+            <div id="sidebarEmployeeList" class="sidebar-list"></div>
+          </div>
+        </aside>
+
+        <div class="office-action-buttons">
+          <button type="button" id="employeeSignInBtn" class="btn btn-secondary">Employee Sign In</button>
+          <button type="button" id="signOutEmployeeBtn" class="btn btn-secondary" style="display:none;">Sign Out Employee</button>
+          <button type="button" id="createNewAvatarBtn" class="btn btn-secondary">+ Create New Avatar</button>
+          <button type="button" id="createTeamBtn" class="btn btn-secondary">+ Create Team</button>
+        </div>
       </div>
     </div>
   </div>
@@ -317,7 +291,7 @@
         <div class="team-actions">
           <button type="button" id="managePermsBtn" class="btn btn-secondary btn-sm">Manage Permissions</button>
           <button type="button" id="addTaskHeaderBtn" class="add-task-header-btn">+ Add Task</button>
-          
+  
           <div style="margin-top:16px;padding:12px;background:#f8f9ff;border-radius:8px;border:1px solid #e5e7eb;">
             <div class="section-title" style="margin:0 0 8px 0;">📅 Team Events</div>
             <button type="button" id="teamEventsBtn" class="btn btn-primary btn-sm" style="width:100%;margin-bottom:8px;">+ Add Event</button>
@@ -325,6 +299,7 @@
           </div>
         </div>
       </header>
+
 
       <section class="backlog-belt">
         <div class="belt-header">
@@ -345,7 +320,7 @@
       <div class="kanban-board">
         <div class="kanban-column todo-column">
           <div class="column-header todo-header">
-            <div class="column-left"><span class="column-title">TODO</span></div>
+            <div class="column-left"><span class="column-title">📋 TODO</span></div>
             <div class="column-right">
               <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('todo')">+</button>
               <span id="todoCount" class="column-count">0</span>
@@ -356,7 +331,7 @@
 
         <div class="kanban-column progress-column">
           <div class="column-header progress-header">
-            <div class="column-left"><span class="column-title">In Progress</span></div>
+            <div class="column-left"><span class="column-title">🔥 In Progress</span></div>
             <div class="column-right">
               <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('in-progress')">+</button>
               <span id="progressCount" class="column-count">0</span>
@@ -367,7 +342,7 @@
 
         <div class="kanban-column waiting-column">
           <div class="column-header waiting-header">
-            <div class="column-left"><span class="column-title">Waiting</span></div>
+            <div class="column-left"><span class="column-title">⏳ Waiting</span></div>
             <div class="column-right">
               <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('waiting')">+</button>
               <span id="waitingCount" class="column-count">0</span>
@@ -378,7 +353,7 @@
 
         <div class="kanban-column done-column">
           <div class="column-header done-header">
-            <div class="column-left"><span class="column-title">Done</span></div>
+            <div class="column-left"><span class="column-title">✅ Done</span></div>
             <div class="column-right">
               <button class="add-task-column-btn" onclick="showAddTaskToColumnModal('done')">+</button>
               <span id="doneCount" class="column-count">0</span>
@@ -390,200 +365,11 @@
     </div>
   </div>
 
-  <!-- Customization Store Screen -->
-  <div class="screen" id="customizationScreen">
-    <div class="customization-container">
-      <!-- Header with user stats -->
-      <header class="customization-header">
-        <div class="header-content">
-          <button class="back-to-platform-btn" id="backToPlatformBtn">
-            ← Back to Workspace
-          </button>
-          <h1 class="store-title">✨ Your Personal Encouragement Store</h1>
-          <div class="motivational-quote" id="motivationalQuote">
-            "You're capable of amazing things!"
-          </div>
-          <div class="user-stats">
-            <div class="stat-item">
-              <span class="stat-label">Level</span>
-              <span class="stat-value level-display" id="storeUserLevel">1</span>
-              <span class="level-title" id="storeLevelTitle">Getting Started</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">Coins</span>
-              <span class="stat-value coins-display" id="storeUserCoins">100</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-label">Points</span>
-              <span class="stat-value points-display" id="storeUserPoints">0</span>
-            </div>
-          </div>
-        </div>
-        <div class="progress-section">
-          <div class="progress-info">
-            <span class="progress-text">Your Growth Journey</span>
-            <span class="progress-numbers" id="storeProgressNumbers">0 / 100</span>
-          </div>
-          <div class="progress-bar">
-            <div class="progress-fill" id="storeProgressFill"></div>
-          </div>
-        </div>
-      </header>
-
-      <!-- Department Navigation -->
-      <nav class="department-nav">
-        <div class="department-buttons">
-          <button class="department-btn active" id="avatarDepartmentBtn" data-department="avatars">
-            🎭 Avatar Store
-          </button>
-          <button class="department-btn" id="themeDepartmentBtn" data-department="themes">
-            🎨 Workspace Themes
-          </button>
-          <button class="department-btn" id="inventoryDepartmentBtn" data-department="inventory">
-            📦 My Collection
-          </button>
-        </div>
-      </nav>
-
-      <!-- Store Content -->
-      <main class="store-content">
-        <!-- Avatar Store Department -->
-        <div class="department active" id="avatarDepartment">
-          <div class="department-header">
-            <h2>Choose Your Avatar</h2>
-            <p>Express yourself with encouraging emojis that motivate and inspire!</p>
-          </div>
-          
-          <div class="category-filters" id="avatarCategoryFilters">
-            <!-- Will be populated by JavaScript -->
-          </div>
-
-          <div class="items-grid" id="avatarItemsGrid">
-            <!-- Avatar items will be populated by JavaScript -->
-          </div>
-        </div>
-
-        <!-- Theme Store Department -->
-        <div class="department" id="themeDepartment">
-          <div class="department-header">
-            <h2>Workspace Themes</h2>
-            <p>Transform your Addy workspace with beautiful, inspiring themes!</p>
-          </div>
-          
-          <div class="items-grid" id="themeItemsGrid">
-            <!-- Theme items will be populated by JavaScript -->
-          </div>
-        </div>
-
-        <!-- Inventory Department -->
-        <div class="department" id="inventoryDepartment">
-          <div class="department-header">
-            <h2>My Collection</h2>
-            <p>Manage your avatars and themes</p>
-          </div>
-
-          <div class="inventory-sections">
-            <div class="inventory-section">
-              <h3>My Avatars</h3>
-              <div class="current-selection" id="currentAvatarSelection">
-                <!-- Current avatar display -->
-              </div>
-              <div class="owned-items" id="ownedAvatars">
-                <!-- Owned avatars -->
-              </div>
-            </div>
-
-            <div class="inventory-section">
-              <h3>My Themes</h3>
-              <div class="current-selection" id="currentThemeSelection">
-                <!-- Current theme display -->
-              </div>
-              <div class="owned-items" id="ownedThemes">
-                <!-- Owned themes -->
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-
-    <!-- Purchase Modal -->
-    <div class="modal-overlay" id="purchaseModalOverlay">
-      <div class="modal" id="purchaseModal">
-        <div class="modal-header">
-          <h3 id="purchaseModalTitle">Confirm Purchase</h3>
-          <button class="modal-close" id="purchaseModalClose">×</button>
-        </div>
-        <div class="modal-content">
-          <div class="purchase-preview" id="purchasePreview">
-            <!-- Item preview -->
-          </div>
-          <div class="purchase-message" id="purchaseMessage">
-            <!-- Encouraging message -->
-          </div>
-          <div class="purchase-cost" id="purchaseCost">
-            <!-- Cost display -->
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn secondary" id="purchaseCancelBtn">Cancel</button>
-          <button class="btn primary" id="purchaseConfirmBtn">Purchase</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Toast Notifications -->
-    <div class="toast-container" id="toastContainer"></div>
-  </div>
-
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
   window.SUPABASE_URL  = "https://guzdovkwgzgzdnswuoou.supabase.co";
   window.SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1emRvdmt3Z3pnemRuc3d1b291Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5NjQ1NTUsImV4cCI6MjA3MzU0MDU1NX0.MzbKYe9Icdss4qo7FctN-OAb_hzEBhrr0Gi8ZfkbyJc";
 </script>
 <script src="AddyApp.js"></script>
-<script src="customization-store.js"></script>
-
-
-<!-- === Forgot Password: Request Email Modal === -->
-<div id="fpw-modal-email" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="fpwEmailTitle">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3 id="fpwEmailTitle">Reset your password</h3>
-      <button class="modal-close" data-close="#fpw-modal-email">×</button>
-    </div>
-    <div class="modal-form">
-      <p class="modal-desc">Enter the email you used for Addy. We’ll send you a secure reset link.</p>
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input id="fpwEmail" type="email" class="form-control" placeholder="you@example.com" required>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" data-close="#fpw-modal-email">Cancel</button>
-        <button id="fpwSendBtn" class="btn btn-primary">Send reset link</button>
-      </div>
-      <p id="fpwError" class="small-hint" style="color:#b42318;display:none;margin-top:8px;"></p>
-    </div>
-  </div>
-</div>
-
-<!-- === Forgot Password: Link Sent Modal === -->
-<div id="fpw-modal-sent" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="fpwSentTitle">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3 id="fpwSentTitle">Check your inbox</h3>
-      <button class="modal-close" data-close="#fpw-modal-sent">×</button>
-    </div>
-    <div class="modal-form">
-      <p class="modal-desc">
-        We sent a secure link to <span id="fpwSentEmail" style="font-weight:600;"></span>.<br>
-        Open it to choose a new password. If you don’t see it, check Spam/Promotions.
-      </p>
-      <div class="modal-actions">
-        <button class="btn btn-primary" data-close="#fpw-modal-sent">Got it</button>
-      </div>
-    </div>
-  </div>
-</div>
 </body>
 </html>
