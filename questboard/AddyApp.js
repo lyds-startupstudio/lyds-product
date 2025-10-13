@@ -514,6 +514,38 @@ function ensureTeamExists(name){
    =========================== */
 function renderPlatformForUser(){
   const u=getCurrentUser();
+  
+  // Apply user's selected background to ::before pseudo-element
+  if(state.storeData && state.storeData.currentBackground) {
+    const bgData = state.storeData.currentBackground;
+    const officeMap = byId('officeMap');
+    if(officeMap && bgData) {
+      // Create or update style element for pseudo-element
+      let styleEl = byId('office-bg-style');
+      if(!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'office-bg-style';
+        document.head.appendChild(styleEl);
+      }
+      
+      // Check if it's a color, gradient, or image
+      let bgStyle = '';
+      if(bgData.startsWith('#')) {
+        // Plain color
+        bgStyle = `background: ${bgData}; opacity: 0.85;`;
+      } else if(bgData.startsWith('linear-gradient')) {
+        // Gradient
+        bgStyle = `background: ${bgData}; opacity: 0.85;`;
+      } else {
+        // Image
+        bgStyle = `background: url('${bgData}'); background-size: cover; background-position: center; opacity: 0.85;`;
+      }
+      
+      styleEl.textContent = `.office-map::before { ${bgStyle} }`;
+    }
+  }
+  
+  // Apply user's selected avatar emoji
   const navUserAvatar = byId('navUserAvatar');
   const navUserName = byId('navUserName');
   const navUserRole = byId('navUserRole');
@@ -521,6 +553,7 @@ function renderPlatformForUser(){
   if(navUserAvatar) navUserAvatar.textContent=u?.emoji || '•';
   if(navUserName) navUserName.textContent=u?.name || (state.workspace.type==='business'?'Not signed in':'');
   if(navUserRole) navUserRole.textContent=u?.role || '';
+
 
   // Render ALL avatars on screen in a horizontal line
   const map = byId('officeMap');
@@ -2756,14 +2789,15 @@ function openStore() {
   if (!state.storeData) {
     state.storeData = {
       points: totalPoints,
-      ownedCharacters: ['char_14', 'char_15'],
-      ownedBackgrounds: ['bg_14', 'bg_15'],
-      currentCharacter: 'char_14',
-      currentBackground: 'bg_14'
+      ownedCharacters: ['char_emoji_1', 'char_emoji_2'],
+      ownedBackgrounds: ['bg_plain_1', 'bg_plain_2'],
+      currentCharacter: user.emoji || '👻',
+      currentBackground: '#F8FAFC'
     };
   } else {
     state.storeData.points = totalPoints;
   }
+
   
   // Update store header
   const storeUserAvatar = byId('storeUserAvatar');
@@ -2941,13 +2975,60 @@ window.updateStoreDataInMainApp = function(storeData) {
   const user = getCurrentUser();
   if (user && storeData.currentCharacter) {
     console.log('User selected character:', storeData.currentCharacter);
+    
+    // Update the current user's emoji
+    user.emoji = storeData.currentCharacter;
+    
+    // Update UI immediately
+    const navUserAvatar = byId('navUserAvatar');
+    if(navUserAvatar) navUserAvatar.textContent = storeData.currentCharacter;
+    
+    // Update the character on the map
+    const charElement = byId(`char-${user.id}`);
+    if(charElement) {
+      const charAvatar = charElement.querySelector('.character-avatar');
+      if(charAvatar) charAvatar.textContent = storeData.currentCharacter;
+    }
+    
+    // Update store header avatar
+    const storeUserAvatar = byId('storeUserAvatar');
+    if(storeUserAvatar) storeUserAvatar.textContent = storeData.currentCharacter;
   }
   
   saveCurrentWorkspace();
   
   const storeUserPoints = byId('storeUserPoints');
   if(storeUserPoints) storeUserPoints.textContent = `${storeData.points} Points`;
+  
+  // Re-render platform to apply background
+  if(storeData.currentBackground) {
+    const officeMap = byId('officeMap');
+    if(officeMap) {
+      const bgData = storeData.currentBackground;
+      
+      // Create or update style element for pseudo-element
+      let styleEl = byId('office-bg-style');
+      if(!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'office-bg-style';
+        document.head.appendChild(styleEl);
+      }
+      
+      let bgStyle = '';
+      if(bgData.startsWith('#')) {
+        bgStyle = `background: ${bgData}; opacity: 0.85;`;
+      } else if(bgData.startsWith('linear-gradient')) {
+        bgStyle = `background: ${bgData}; opacity: 0.85;`;
+      } else {
+        bgStyle = `background: url('${bgData}'); background-size: cover; background-position: center; opacity: 0.85;`;
+      }
+      
+      styleEl.textContent = `.office-map::before { ${bgStyle} }`;
+    }
+  }
 };
+
+
 
 // Make handleStoreItemClick global
 window.handleStoreItemClick = handleStoreItemClick;
