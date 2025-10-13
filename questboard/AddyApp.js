@@ -160,6 +160,7 @@ function hydrateFrom(ws){
   state.avatars = JSON.parse(JSON.stringify(ws.data?.avatars || []));
   state.teams = JSON.parse(JSON.stringify(ws.data?.teams || {}));
   state.companyEvents = JSON.parse(JSON.stringify(ws.data?.companyEvents || []));
+  state.storeData = ws.data?.storeData ? JSON.parse(JSON.stringify(ws.data.storeData)) : null;
   state.currentUserId = null;
   state.currentTeam = null;
   state.office = { posX:0, posY:0, speed:3, keys:{}, loopId:null, keydownHandler:null, keyupHandler:null, nearTeam:null };
@@ -545,6 +546,11 @@ function renderPlatformForUser(){
     }
   }
   
+  // Apply saved avatar emoji if it exists in storeData
+  if(u && state.storeData && state.storeData.currentCharacter) {
+    u.emoji = state.storeData.currentCharacter;
+  }
+  
   // Apply user's selected avatar emoji
   const navUserAvatar = byId('navUserAvatar');
   const navUserName = byId('navUserName');
@@ -553,6 +559,7 @@ function renderPlatformForUser(){
   if(navUserAvatar) navUserAvatar.textContent=u?.emoji || '•';
   if(navUserName) navUserName.textContent=u?.name || (state.workspace.type==='business'?'Not signed in':'');
   if(navUserRole) navUserRole.textContent=u?.role || '';
+
 
 
   // Render ALL avatars on screen in a horizontal line
@@ -2995,6 +3002,7 @@ window.updateStoreDataInMainApp = function(storeData) {
     if(storeUserAvatar) storeUserAvatar.textContent = storeData.currentCharacter;
   }
   
+  // Save to workspace immediately
   saveCurrentWorkspace();
   
   const storeUserPoints = byId('storeUserPoints');
@@ -3027,6 +3035,8 @@ window.updateStoreDataInMainApp = function(storeData) {
     }
   }
 };
+
+
 
 
 
@@ -3095,6 +3105,34 @@ document.addEventListener('DOMContentLoaded', ()=>{
       } else if (sess.employeeId) {
         state.currentUserId = sess.employeeId;
       }
+      
+      // Apply saved background if it exists
+      if(state.storeData && state.storeData.currentBackground) {
+        setTimeout(() => {
+          const bgData = state.storeData.currentBackground;
+          const officeMap = byId('officeMap');
+          if(officeMap) {
+            let styleEl = byId('office-bg-style');
+            if(!styleEl) {
+              styleEl = document.createElement('style');
+              styleEl.id = 'office-bg-style';
+              document.head.appendChild(styleEl);
+            }
+            
+            let bgStyle = '';
+            if(bgData.startsWith('#')) {
+              bgStyle = `background: ${bgData}; opacity: 0.85;`;
+            } else if(bgData.startsWith('linear-gradient')) {
+              bgStyle = `background: ${bgData}; opacity: 0.85;`;
+            } else {
+              bgStyle = `background: url('${bgData}'); background-size: cover; background-position: center; opacity: 0.85;`;
+            }
+            
+            styleEl.textContent = `.office-map::before { ${bgStyle} }`;
+          }
+        }, 100);
+      }
+      
       renderPlatformForUser();
       showScreen('platform');
     }
