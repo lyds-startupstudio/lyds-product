@@ -164,7 +164,6 @@ html,body{margin:0;padding:0;font-family:var(--font);color:var(--color-slate-900
   z-index: 100;
 }
 
-
 .team-room:hover{transform:scale(1.02)}
 .room-header{font-weight:800;margin-bottom:6px}
 .room-members{display:flex;gap:4px;margin-bottom:6px}
@@ -175,7 +174,7 @@ html,body{margin:0;padding:0;font-family:var(--font);color:var(--color-slate-900
   top: 20px;
   right: 20px;
   width: 260px;
-  max-height: calc(100vh - 40px);
+  max-height: calc(100vh - 160px);
   display: flex;
   flex-direction: column;
   gap: 12px;
