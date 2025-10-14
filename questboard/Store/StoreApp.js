@@ -91,9 +91,7 @@ const STORE_DATA = {
   ]
 };
 
-
-
-// Store State - will be synced with main app state
+// Store State - מסונכרן עם AddyApp
 let storeState = {
   userPoints: 0,
   ownedCharacters: [],
@@ -111,18 +109,41 @@ let storeState = {
 function initializeStore(userData) {
   if (userData) {
     storeState.userPoints = userData.points || 0;
-    storeState.ownedCharacters = userData.ownedCharacters || ['char_emoji_1', 'char_emoji_2'];
-    storeState.ownedBackgrounds = userData.ownedBackgrounds || ['bg_plain_1', 'bg_plain_2'];
-    storeState.currentCharacter = userData.currentCharacter || 'char_emoji_1';
-    storeState.currentBackground = userData.currentBackground || 'bg_plain_1';
+    storeState.ownedCharacters = userData.ownedCharacters && userData.ownedCharacters.length > 0 
+      ? [...userData.ownedCharacters] 
+      : ['char_emoji_1', 'char_emoji_2'];
+    storeState.ownedBackgrounds = userData.ownedBackgrounds && userData.ownedBackgrounds.length > 0 
+      ? [...userData.ownedBackgrounds] 
+      : ['bg_plain_1', 'bg_plain_2'];
+    
+    // מצא את ה-ID של הדמות הנוכחית לפי ה-emoji/image
+    if (userData.currentCharacter) {
+      const charMatch = STORE_DATA.characters.find(c => 
+        c.emoji === userData.currentCharacter || c.image === userData.currentCharacter
+      );
+      storeState.currentCharacter = charMatch ? charMatch.id : 'char_emoji_1';
+    } else {
+      storeState.currentCharacter = 'char_emoji_1';
+    }
+    
+    // מצא את ה-ID של הרקע הנוכחי לפי color/gradient/image
+    if (userData.currentBackground) {
+      const bgMatch = STORE_DATA.backgrounds.find(b => 
+        b.color === userData.currentBackground || 
+        b.gradient === userData.currentBackground || 
+        b.image === userData.currentBackground
+      );
+      storeState.currentBackground = bgMatch ? bgMatch.id : 'bg_plain_1';
+    } else {
+      storeState.currentBackground = 'bg_plain_1';
+    }
   }
   renderStore();
 }
 
-
 // Render the entire store
 function renderStore() {
-  const app = document.getElementById('storeContent'); // שינוי מ-storeApp
+  const app = document.getElementById('storeContent');
   if (!app) return;
   
   app.innerHTML = `
@@ -343,10 +364,6 @@ function renderItemCard(item) {
   `;
 }
 
-
-
-
-// Render purchase modal
 // Render purchase modal
 function renderPurchaseModal() {
   if (!storeState.selectedItem) return '';
@@ -354,7 +371,6 @@ function renderPurchaseModal() {
   const item = storeState.selectedItem;
   const itemType = storeState.activeTab === 'characters' ? 'character' : 'background';
   
-  // Determine what to show in the modal
   let previewContent = '';
   let modalBgStyle = '';
   
@@ -365,7 +381,6 @@ function renderPurchaseModal() {
       previewContent = `<img src="${item.image}" alt="${item.name}" class="modal-image">`;
     }
   } else {
-    // Background preview
     if (item.color) {
       previewContent = `<div class="modal-bg-preview" style="background: ${item.color};"></div>`;
       modalBgStyle = `style="background: ${item.color};"`;
@@ -381,9 +396,6 @@ function renderPurchaseModal() {
   return `
     <div class="modal" ${modalBgStyle}>
       <div class="modal-content">
-
-
-
         <h3 class="modal-header">Purchase ${item.name}</h3>
         <div class="modal-body">
           ${previewContent}
@@ -391,7 +403,7 @@ function renderPurchaseModal() {
           <p class="modal-item-name">${item.name}</p>
           <div class="modal-price">
             <svg class="price-star" style="width: 1.5rem; height: 1.5rem;" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              <path d="M9.049 2.927c.3-.921 1.603-.9211.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
             <span style="font-weight: bold; font-size: 1.5rem;">${item.price} Points</span>
           </div>
@@ -406,14 +418,12 @@ function renderPurchaseModal() {
   `;
 }
 
-
-
 // Render not enough points modal
 function renderNotEnoughModal() {
   if (!storeState.selectedItem) return '';
   
   const item = storeState.selectedItem;
-  const itemType = storeState.activeTab === 'characters' ? 'characters' : 'backgrounds';
+  const itemType = storeState.activeTab === 'characters' ? 'character' : 'background';
   const shortage = item.price - storeState.userPoints;
   
   return `
@@ -449,11 +459,11 @@ function renderNotEnoughModal() {
                 </div>
               </div>
             </div>
-            <p class="shortage-text">חסרות לך ${shortage} נקודות</p>
+            <p class="shortage-text">You need ${shortage} more points</p>
           </div>
-          <p class="encouragement-text">המשך להשלים משימות כדי לצבור עוד נקודות!</p>
+          <p class="encouragement-text">Complete more tasks to earn points!</p>
         </div>
-        <button class="modal-button close" onclick="closeNotEnoughModal()">הבנתי</button>
+        <button class="modal-button close" onclick="closeNotEnoughModal()">Got it</button>
       </div>
     </div>
   `;
@@ -487,7 +497,8 @@ function attachEventListeners() {
 
 // Handle item click
 function handleItemClick(itemId) {
-  const items = storeState.activeTab === 'characters' ? STORE_DATA.characters : STORE_DATA.backgrounds;
+  const items = storeState.activeTab === 'characters' 
+    ? STORE_DATA.characters : STORE_DATA.backgrounds;
   const item = items.find(i => i.id === itemId);
   if (!item) return;
   
@@ -495,22 +506,26 @@ function handleItemClick(itemId) {
     ? storeState.ownedCharacters.includes(itemId)
     : storeState.ownedBackgrounds.includes(itemId);
   
+  const isCurrent = storeState.activeTab === 'characters'
+    ? storeState.currentCharacter === itemId
+    : storeState.currentBackground === itemId;
+  
   if (isOwned) {
-    // Equip the item
-    if (storeState.activeTab === 'characters') {
-      storeState.currentCharacter = itemId;
-    } else {
-      storeState.currentBackground = itemId;
+    if (!isCurrent) {
+      // Activate item
+      if (storeState.activeTab === 'characters') {
+        storeState.currentCharacter = itemId;
+      } else {
+        storeState.currentBackground = itemId;
+      }
+      updateMainApp();
+      renderStore();
     }
-    updateMainApp();
-    renderStore();
   } else if (storeState.userPoints >= item.price) {
-    // Show purchase modal
     storeState.selectedItem = item;
     storeState.showPurchaseModal = true;
     renderStore();
   } else {
-    // Show not enough points modal
     storeState.selectedItem = item;
     storeState.showNotEnoughModal = true;
     renderStore();
@@ -536,7 +551,15 @@ function confirmPurchase() {
   if (!storeState.selectedItem) return;
   
   const item = storeState.selectedItem;
+  
+  // עדכן נקודות - הפחת את המחיר
   storeState.userPoints -= item.price;
+  
+  // עדכן pointsSpent ב-storeState (זה ישמר ל-AddyApp)
+  if (!storeState.pointsSpent) {
+    storeState.pointsSpent = 0;
+  }
+  storeState.pointsSpent += item.price;
   
   if (storeState.activeTab === 'characters') {
     storeState.ownedCharacters.push(item.id);
@@ -549,39 +572,34 @@ function confirmPurchase() {
   storeState.showPurchaseModal = false;
   storeState.selectedItem = null;
   
-  // Update and refresh
+  // שמור את הנקודות והרכישות ל-AddyApp
   updateMainApp();
   renderStore();
   
-  // Show success message
   if (typeof toast === 'function') {
     toast(`Purchased ${item.name}! ✨`);
   }
 }
 
-
-
-// Update main app with store data
+// Update main app with store data - זה שומר ל-Supabase
 function updateMainApp() {
-  if (window.updateStoreDataInMainApp) {
+  if (typeof window.updateStoreDataInMainApp === 'function') {
     const currentChar = STORE_DATA.characters.find(c => c.id === storeState.currentCharacter);
     const currentBg = STORE_DATA.backgrounds.find(b => b.id === storeState.currentBackground);
     
-    // Get emoji or image
-    let characterData = currentChar?.emoji || currentChar?.image || '•';
-    let backgroundData = currentBg?.color || currentBg?.gradient || currentBg?.image || '#F8FAFC';
-    
-    window.updateStoreDataInMainApp({
+    // בנה את הנתונים לעדכון - תמיד כולל את כל השדות
+    const updateData = {
       points: storeState.userPoints,
-      ownedCharacters: storeState.ownedCharacters,
-      ownedBackgrounds: storeState.ownedBackgrounds,
-      currentCharacter: characterData,
-      currentBackground: backgroundData
-    });
+      pointsSpent: storeState.pointsSpent || 0,
+      ownedCharacters: [...storeState.ownedCharacters],
+      ownedBackgrounds: [...storeState.ownedBackgrounds],
+      currentCharacter: currentChar ? (currentChar.emoji || currentChar.image || '•') : null,
+      currentBackground: currentBg ? (currentBg.color || currentBg.gradient || currentBg.image || '#F8FAFC') : null
+    };
+    
+    window.updateStoreDataInMainApp(updateData);
   }
 }
-
-
 
 // Make functions global
 window.closePurchaseModal = closePurchaseModal;
