@@ -18,6 +18,9 @@
   <script src="https://cdn.amplitude.com/libs/plugin-session-replay-browser-1.8.0-min.js.gz"></script>
   <script>window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));window.amplitude.init('d017435517387c14ff318b037a949f53', {"autocapture":{"elementInteractions":true}});</script>
   
+  <!-- Tally Forms -->
+<script async src="https://tally.so/widgets/embed.js"></script>
+
   <title>Addy - Gamified Team Management</title>
   <link rel="stylesheet" href="AddyStyle.css"/>
   <link rel="stylesheet" href="Store/StoreStyle.css"/>
@@ -244,6 +247,16 @@
           </div>
         </div>
         <div class="nav-right">
+            <!-- Feedback Button - Left of Store -->
+  <button type="button" class="btn btn-secondary" style="margin-right: 10px;" 
+          data-tally-open="mOWP2a" 
+          data-tally-emoji-text="💭" 
+          data-tally-emoji-animation="bounce" 
+          data-tally-auto-close="3000" 
+          data-tally-form-events-forwarding="1"
+          data-page="app">
+    💬 Feedback
+  </button>
           <button type="button" id="openStoreBtn" class="btn btn-secondary" style="margin-right: 10px;">
             🛒 Store
           </button>
