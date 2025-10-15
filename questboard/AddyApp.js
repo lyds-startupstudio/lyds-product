@@ -528,71 +528,72 @@ function ensureTeamExists(name){
 function renderPlatformForUser(){
   const u=getCurrentUser();
   
-  // Apply user's selected background to ::before pseudo-element
-  if(state.storeData && state.storeData.currentBackground) {
-    const bgData = state.storeData.currentBackground;
-    const officeMap = byId('officeMap');
-    if(officeMap && bgData) {
-      // Create or update style element for pseudo-element
-      let styleEl = byId('office-bg-style');
-      if(!styleEl) {
-        styleEl = document.createElement('style');
-        styleEl.id = 'office-bg-style';
-        document.head.appendChild(styleEl);
+  // Restore session background if exists (session only, not from workspace)
+  try {
+    const sessionBg = sessionStorage.getItem('addy_session_bg');
+    if(sessionBg && u) {
+      const officeMap = byId('officeMap');
+      if(officeMap) {
+        let styleEl = byId('office-bg-style');
+        if(!styleEl) {
+          styleEl = document.createElement('style');
+          styleEl.id = 'office-bg-style';
+          document.head.appendChild(styleEl);
+        }
+        
+        let bgStyle = '';
+        if(sessionBg.startsWith('#')) {
+          bgStyle = `background: ${sessionBg}; opacity: 0.85;`;
+        } else if(sessionBg.startsWith('linear-gradient')) {
+          bgStyle = `background: ${sessionBg}; opacity: 0.85;`;
+        } else {
+          bgStyle = `background: url('${sessionBg}'); background-size: cover; background-position: center; opacity: 0.85;`;
+        }
+        
+        styleEl.textContent = `.office-map::before { ${bgStyle} }`;
       }
-      
-      // Check if it's a color, gradient, or image
-      let bgStyle = '';
-      if(bgData.startsWith('#')) {
-        // Plain color
-        bgStyle = `background: ${bgData}; opacity: 0.85;`;
-      } else if(bgData.startsWith('linear-gradient')) {
-        // Gradient
-        bgStyle = `background: ${bgData}; opacity: 0.85;`;
-      } else {
-        // Image
-        bgStyle = `background: url('${bgData}'); background-size: cover; background-position: center; opacity: 0.85;`;
-      }
-      
-      styleEl.textContent = `.office-map::before { ${bgStyle} }`;
+    }
+  } catch(e) {}
+  
+  // FIXED: Apply user's selected character emoji AND owned items from store
+  if(u && state.storeData) {
+    if(state.storeData.currentCharacter) {
+      u.emoji = state.storeData.currentCharacter;
     }
   }
   
-  // Apply saved avatar emoji if it exists in storeData
-  if(u && state.storeData && state.storeData.currentCharacter) {
-    u.emoji = state.storeData.currentCharacter;
-  }
-  
-  // Apply user's selected avatar emoji
+  // Update nav UI
   const navUserAvatar = byId('navUserAvatar');
   const navUserName = byId('navUserName');
   const navUserRole = byId('navUserRole');
 
   if(navUserAvatar) navUserAvatar.textContent=u?.emoji || '•';
   if(navUserName) navUserName.textContent=u?.name || (state.workspace.type==='business'?'Not signed in':'');
-  if(navUserRole) navUserRole.textContent=u?.role || '';
 
-
+  // FIXED: Show points in nav header
+  if(navUserRole && u) {
+    const earnedPoints = calculateUserPoints(u.id);
+    const availablePoints = earnedPoints - (state.storeData?.pointsSpent || 0);
+    const roleText = u.role || '';
+    navUserRole.innerHTML = `${roleText} <span style="color:#10B981;font-weight:800;margin-left:8px;">⭐ ${availablePoints} pts</span>`;
+  } else if(navUserRole) {
+    navUserRole.textContent = '';
+  }
 
   // Render ALL avatars on screen in a horizontal line
   const map = byId('officeMap');
   if(map) {
-    // Remove ALL old characters
     map.querySelectorAll('.user-character').forEach(c => c.remove());
     
-    // Initialize positions for avatars if not set
     if(!state.office.avatarPositions) {
       state.office.avatarPositions = {};
     }
     
-    // Position avatars in a horizontal line below team boxes
     const startX = 60;
-    const startY = 500; // Below the teams
+    const startY = 500;
     const spacing = 100;
     
-    // Create character for each avatar
     state.avatars.forEach((avatar, idx) => {
-      // Set initial position if not exists
       if(!state.office.avatarPositions[avatar.id]) {
         state.office.avatarPositions[avatar.id] = {
           x: startX + idx * spacing,
@@ -619,7 +620,6 @@ function renderPlatformForUser(){
       if(ca) ca.textContent = avatar.emoji || '•';
       if(cn) cn.textContent = avatar.name || '';
       
-      // Highlight current user with border
       if(avatar.id === state.currentUserId) {
         char.style.outline = '3px solid #4F46E5';
         char.style.outlineOffset = '2px';
@@ -650,12 +650,10 @@ function renderPlatformForUser(){
       };
     }
     if(employeeSignInBtn){
-      // Show "Sign In" only if NOT logged in as employee
       employeeSignInBtn.style.display = state.currentUserId ? 'none' : 'inline-flex';
       employeeSignInBtn.onclick=()=>showEmployeeSignInModal();
     }
     if(signOutEmployeeBtn){
-      // Show "Sign Out Employee" only if logged in as employee
       signOutEmployeeBtn.style.display = state.currentUserId ? 'inline-flex' : 'none';
       signOutEmployeeBtn.onclick=()=>signOutEmployee();
     }
@@ -681,16 +679,9 @@ function renderPlatformForUser(){
     addCompanyEventBtn.onclick = () => showCompanyEventsSimple();
   }
   
-  // Store button
   const openStoreBtn = byId('openStoreBtn');
   if(openStoreBtn) {
-    openStoreBtn.onclick = () => {
-      console.log('Store button clicked!');
-      openStore();
-    };
-    console.log('✅ Store button connected successfully');
-  } else {
-    console.warn('⚠️ Store button (#openStoreBtn) not found in DOM');
+    openStoreBtn.onclick = () => openStore();
   }
   
   startOfficeControls();
@@ -699,6 +690,10 @@ function renderPlatformForUser(){
 function getCurrentUser(){ 
   return state.avatars.find(a=>a.id===state.currentUserId)||null; 
 }
+
+window.getCurrentUserId = function() {
+  return state.currentUserId;
+};
 
 function calculateUserPoints(userId) {
   if (!userId) return 0;
@@ -710,6 +705,14 @@ function calculateUserPoints(userId) {
   });
   
   return totalPoints;
+}
+
+// Emit points update event for UI synchronization
+function emitPointsUpdate(userId) {
+  const event = new CustomEvent('points-updated', { 
+    detail: { userId, points: calculateUserPoints(userId) } 
+  });
+  window.dispatchEvent(event);
 }
 
 function updateTeamPointsDisplay(){
@@ -1589,27 +1592,27 @@ function renderTaskCard(task, team, mini=false, isClone=false){
   footer.append(pts,asg); card.appendChild(footer);
 
   const user=getCurrentUser();
-  if(task.status==='waiting' && user && isTeamLeadOf(user.id, team.name)){
-    const btn=document.createElement('button'); btn.className='approve-button'; btn.textContent='Approve & Done';
-    btn.onclick=(e)=>{
-      e.stopPropagation();
-      team.awardedPoints=(team.awardedPoints||0)+(task.points||0);
-      task.status='done';
-      
-      // עדכן נקודות בחנות אם יש מבצע המשימה
-      const taskAssignee = state.avatars.find(a => a.id === task.assigneeId);
-      if(taskAssignee && state.storeData && task.assigneeId === state.currentUserId) {
-        const newPoints = calculateUserPoints(task.assigneeId);
-        state.storeData.points = newPoints;
-      }
-      
-      saveCurrentWorkspace();
-      renderBoard(team.name);
-      enableDnD(team.name);
-      showCelebration(task.points||0);
-    };
-    card.appendChild(btn);
-  }
+if(task.status==='waiting' && user && isTeamLeadOf(user.id, team.name)){
+  const btn=document.createElement('button'); 
+  btn.className='approve-button'; 
+  btn.textContent='Approve & Done';
+  btn.onclick=(e)=>{
+    e.stopPropagation();
+    team.awardedPoints=(team.awardedPoints||0)+(task.points||0);
+    task.status='done';
+    
+    // CRITICAL: Emit points update for immediate UI refresh
+    if(task.assigneeId) {
+      emitPointsUpdate(task.assigneeId);
+    }
+    
+    saveCurrentWorkspace();
+    renderBoard(team.name);
+    enableDnD(team.name);
+    showCelebration(task.points||0);
+  };
+  card.appendChild(btn);
+}
 
   if(!isClone){
     card.onclick=(e)=>{
@@ -1687,12 +1690,12 @@ if(status==='todo' && !task.assigneeId && !isPersonal && team.members.length > 0
       // Show celebration when moved to done
       if(status==='done' && prev!=='done'){
         showCelebration(task.points||0);
-      }
-
-      if(user && task.assigneeId === user.id && state.storeData) {
-          const newPoints = calculateUserPoints(user.id);
-          state.storeData.points = newPoints;
+  
+        // CRITICAL: Award points immediately
+        if(user && task.assigneeId === user.id) {
+          emitPointsUpdate(user.id);
         }
+      }
       
       saveCurrentWorkspace();
       renderBoard(teamName);
@@ -2660,7 +2663,6 @@ function signOutEmployee(){
   
   state.currentUserId = null;
   
-  // Clear visual highlights
   const map = byId('officeMap');
   if(map) {
     map.querySelectorAll('.user-character').forEach(char => {
@@ -2668,13 +2670,17 @@ function signOutEmployee(){
     });
   }
   
-  // הסר את הרקע המותאם אישית
+  // FIXED: Clear background on sign-out (session only)
   const styleEl = byId('office-bg-style');
   if(styleEl) {
     styleEl.remove();
   }
   
-  // Update top nav to show no user
+  // FIXED: Clear session storage
+  try {
+    sessionStorage.removeItem('addy_session_bg');
+  } catch(e) {}
+  
   const navUserAvatar = byId('navUserAvatar');
   const navUserName = byId('navUserName');
   const navUserRole = byId('navUserRole');
@@ -2828,25 +2834,19 @@ function openStore() {
     return;
   }
   
-  // חשב נקודות ממשימות מושלמות
-  const earnedPoints = calculateUserPoints(user.id);
-  
-  // Initialize store data ONLY if it doesn't exist
+  // Initialize store data with employee as source of truth
   if (!state.storeData) {
     state.storeData = {
-      points: earnedPoints,
-      pointsEarned: earnedPoints,
-      pointsSpent: 0,
       ownedCharacters: ['char_emoji_1', 'char_emoji_2'],
       ownedBackgrounds: ['bg_plain_1', 'bg_plain_2'],
-      currentCharacter: user.emoji || '👻',
-      currentBackground: '#F8FAFC'
+      currentCharacter: user.emoji,
+      pointsSpent: 0
     };
-  } else {
-    // עדכן נקודות: (נקודות שהרווחת) - (נקודות שבזבזת)
-    state.storeData.pointsEarned = earnedPoints;
-    state.storeData.points = earnedPoints - (state.storeData.pointsSpent || 0);
   }
+  
+  // CRITICAL: Points = Earned - Spent (single source of truth)
+  const earnedPoints = calculateUserPoints(user.id);
+  const availablePoints = earnedPoints - (state.storeData.pointsSpent || 0);
   
   // Update store header
   const storeUserAvatar = byId('storeUserAvatar');
@@ -2855,23 +2855,24 @@ function openStore() {
   
   if(storeUserAvatar) storeUserAvatar.textContent = state.storeData.currentCharacter || user.emoji || '•';
   if(storeUserName) storeUserName.textContent = user.name || '';
-  if(storeUserPoints) storeUserPoints.textContent = `${state.storeData.points} Points`;
+  if(storeUserPoints) storeUserPoints.textContent = `${availablePoints} Points`;
   
-  // Show store screen FIRST
   showScreen('store');
   
-  // Then initialize store UI - use setTimeout to ensure DOM is ready
+  // Initialize store UI with calculated points
   setTimeout(() => {
     if (window.initializeStore) {
-      console.log('Calling initializeStore with:', state.storeData);
-      window.initializeStore(state.storeData);
-    } else {
-      console.error('initializeStore is not available!');
-      renderStoreInline();
+      window.initializeStore({
+        points: availablePoints,
+        pointsSpent: state.storeData.pointsSpent || 0,
+        ownedCharacters: state.storeData.ownedCharacters,
+        ownedBackgrounds: state.storeData.ownedBackgrounds,
+        currentCharacter: state.storeData.currentCharacter,
+        currentBackground: '#F8FAFC'
+      });
     }
   }, 100);
   
-  // Setup close buttons
   const closeBtn = byId('closeStoreBtn');
   const backBtn = byId('backFromStore');
   
@@ -3017,50 +3018,47 @@ function handleStoreItemClick(itemId, type) {
 }
 
 // Receive updates from store
-// Receive updates from store
 window.updateStoreDataInMainApp = function(storeData) {
-  // Initialize if doesn't exist
+  const user = getCurrentUser();
+  if (!user) return;
+  
   if (!state.storeData) {
     state.storeData = {};
   }
   
-  // עדכן נקודות - שמור גם pointsSpent!
-  state.storeData.points = storeData.points;
-  state.storeData.pointsSpent = storeData.pointsSpent || 0;
-  
-  // עדכן רשימות בעלות - חשוב מאוד!
-  state.storeData.ownedCharacters = [...storeData.ownedCharacters];
-  state.storeData.ownedBackgrounds = [...storeData.ownedBackgrounds];
-  
-  // עדכן currentCharacter רק אם הוא השתנה בפועל
-  if (storeData.currentCharacter && storeData.currentCharacter !== state.storeData.currentCharacter) {
-    state.storeData.currentCharacter = storeData.currentCharacter;
-    
-    // עדכן את ה-emoji של המשתמש
-    const user = getCurrentUser();
-    if (user) {
-      user.emoji = storeData.currentCharacter;
-      
-      // עדכן UI
-      const navUserAvatar = byId('navUserAvatar');
-      if(navUserAvatar) navUserAvatar.textContent = storeData.currentCharacter;
-      
-      const charElement = byId(`char-${user.id}`);
-      if(charElement) {
-        const charAvatar = charElement.querySelector('.character-avatar');
-        if(charAvatar) charAvatar.textContent = storeData.currentCharacter;
-      }
-      
-      const storeUserAvatar = byId('storeUserAvatar');
-      if(storeUserAvatar) storeUserAvatar.textContent = storeData.currentCharacter;
-    }
+  // FIXED: Track spent points atomically
+  if (storeData.pointsSpent !== undefined) {
+    state.storeData.pointsSpent = storeData.pointsSpent;
   }
   
-  // עדכן currentBackground רק אם הוא השתנה בפועל - ללא קשר לדמות!
-  if (storeData.currentBackground && storeData.currentBackground !== state.storeData.currentBackground) {
-    state.storeData.currentBackground = storeData.currentBackground;
+  // Update ownership lists
+  if (storeData.ownedCharacters) {
+    state.storeData.ownedCharacters = [...storeData.ownedCharacters];
+  }
+  if (storeData.ownedBackgrounds) {
+    state.storeData.ownedBackgrounds = [...storeData.ownedBackgrounds];
+  }
+  
+  // FIXED: Update currentCharacter ONLY if explicitly provided
+  if (storeData.currentCharacter !== undefined && storeData.currentCharacter !== state.storeData.currentCharacter) {
+    state.storeData.currentCharacter = storeData.currentCharacter;
+    user.emoji = storeData.currentCharacter;
     
-    // החל את הרקע
+    const navUserAvatar = byId('navUserAvatar');
+    if(navUserAvatar) navUserAvatar.textContent = storeData.currentCharacter;
+    
+    const charElement = byId(`char-${user.id}`);
+    if(charElement) {
+      const charAvatar = charElement.querySelector('.character-avatar');
+      if(charAvatar) charAvatar.textContent = storeData.currentCharacter;
+    }
+    
+    const storeUserAvatar = byId('storeUserAvatar');
+    if(storeUserAvatar) storeUserAvatar.textContent = storeData.currentCharacter;
+  }
+  
+  // FIXED: Update currentBackground ONLY if explicitly provided and not undefined
+  if (storeData.currentBackground !== undefined && storeData.currentBackground !== '#F8FAFC') {
     const officeMap = byId('officeMap');
     if(officeMap) {
       const bgData = storeData.currentBackground;
@@ -3082,15 +3080,36 @@ window.updateStoreDataInMainApp = function(storeData) {
       }
       
       styleEl.textContent = `.office-map::before { ${bgStyle} }`;
+      
+      // FIXED: Store in session storage ONLY
+      try {
+        sessionStorage.setItem('addy_session_bg', bgData);
+      } catch(e) {}
     }
   }
   
-  // שמור ל-workspace - זה ישמור את כל storeData כולל ownedCharacters ו-pointsSpent!
+  // FIXED: Save immediately to persist purchases
   saveCurrentWorkspace();
   
-  // עדכן תצוגת נקודות בחנות
+  // FIXED: Calculate and display correct available points EVERYWHERE
+  const earnedPoints = calculateUserPoints(user.id);
+  const availablePoints = earnedPoints - (state.storeData.pointsSpent || 0);
+  
+  // Update store header points
   const storeUserPoints = byId('storeUserPoints');
-  if(storeUserPoints) storeUserPoints.textContent = `${state.storeData.points} Points`;
+  if(storeUserPoints) storeUserPoints.textContent = `${availablePoints} Points`;
+  
+  // FIXED: Update nav header points (home site)
+  // const navUserRole = byId('navUserRole');
+  // if(navUserRole) {
+  //   // Show points in role section
+  //   const roleText = user.role || '';
+  //   navUserRole.textContent = roleText;
+  //   navUserRole.innerHTML = `${roleText} <span style="color:#10B981;font-weight:800;margin-left:8px;">⭐ ${availablePoints} pts</span>`;
+  // }
+  
+  // FIXED: Emit update for office UI sync
+  emitPointsUpdate(user.id);
 };
 
 
@@ -3162,6 +3181,16 @@ document.addEventListener('DOMContentLoaded', ()=>{
       } else if (sess.employeeId) {
         state.currentUserId = sess.employeeId;
       }
+
+      if(!state.storeData && state.currentUserId) {
+        const user = getCurrentUser();
+        state.storeData = {
+          ownedCharacters: ['char_emoji_1', 'char_emoji_2'],
+          ownedBackgrounds: ['bg_plain_1', 'bg_plain_2'],
+          currentCharacter: user?.emoji || '•',
+          pointsSpent: 0
+        };
+      }
       
       // Apply saved background if it exists
       if(state.storeData && state.storeData.currentBackground) {
@@ -3194,4 +3223,16 @@ document.addEventListener('DOMContentLoaded', ()=>{
       showScreen('platform');
     }
   }
+
+  window.addEventListener('points-updated', (e) => {
+    const { userId, points } = e.detail;
+  
+    if(state.currentUserId === userId && screens.store?.classList.contains('active')) {
+      const storeUserPoints = byId('storeUserPoints');
+      if(storeUserPoints && state.storeData) {
+        const availablePoints = points - (state.storeData.pointsSpent || 0);
+        storeUserPoints.textContent = `${availablePoints} Points`;
+      }
+    }
+  });
 });

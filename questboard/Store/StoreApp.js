@@ -29,7 +29,7 @@ const STORE_DATA = {
     { id: 'char_prof_11', name: 'Judge', emoji: '👨‍⚖️', price: 290, tier: 'rare' },
     { id: 'char_prof_12', name: 'Fairy', emoji: '🧚‍♀️', price: 300, tier: 'rare' },
     
-    // Tier 3: Premium images from your avatars folder (400-800 points)
+    // Tier 3: Premium images (400-800 points)
     { id: 'char_img_1', name: 'Hero Avatar 1', image: 'Store/avatars/1ddeb25aac31555f06cc1f4726694e3.png', price: 400, tier: 'premium' },
     { id: 'char_img_2', name: 'Hero Avatar 2', image: 'Store/avatars/3d6a9f6ee6b6251402befa34f9d2a23.png', price: 420, tier: 'premium' },
     { id: 'char_img_3', name: 'Hero Avatar 3', image: 'Store/avatars/5a3e6ceb4293a5cb05b3c5b57ca5.png', price: 440, tier: 'premium' },
@@ -46,7 +46,7 @@ const STORE_DATA = {
     { id: 'char_img_14', name: 'Ultimate Avatar 2', image: 'Store/avatars/665decbe73353a81182d48a397d8.png', price: 800, tier: 'legendary' },
   ],
   backgrounds: [
-    // Tier 1: Plain colors (50-100 points)
+    // Plain colors
     { id: 'bg_plain_1', name: 'Sky Blue', color: '#87CEEB', price: 50, tier: 'common' },
     { id: 'bg_plain_2', name: 'Mint Green', color: '#98FF98', price: 60, tier: 'common' },
     { id: 'bg_plain_3', name: 'Soft Pink', color: '#FFB6C1', price: 70, tier: 'common' },
@@ -54,7 +54,7 @@ const STORE_DATA = {
     { id: 'bg_plain_5', name: 'Peach', color: '#FFDAB9', price: 90, tier: 'common' },
     { id: 'bg_plain_6', name: 'Light Coral', color: '#F08080', price: 100, tier: 'common' },
     
-    // Tier 2: Gradients (150-300 points)
+    // Gradients
     { id: 'bg_grad_1', name: 'Ocean Breeze', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', price: 150, tier: 'rare' },
     { id: 'bg_grad_2', name: 'Sunset Glow', gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', price: 180, tier: 'rare' },
     { id: 'bg_grad_3', name: 'Fresh Meadow', gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', price: 200, tier: 'rare' },
@@ -63,7 +63,7 @@ const STORE_DATA = {
     { id: 'bg_grad_6', name: 'Cool Mint', gradient: 'linear-gradient(135deg, #a1ffce 0%, #faffd1 100%)', price: 280, tier: 'rare' },
     { id: 'bg_grad_7', name: 'Royal Night', gradient: 'linear-gradient(135deg, #000428 0%, #004e92 100%)', price: 300, tier: 'rare' },
     
-    // Tier 3: Premium images folder 1 (350-500 points)
+    // Images folder 1
     { id: 'bg_img_1_1', name: 'Premium Scene 1', image: 'Store/backgrounds/1/1ab9ffb39c7b365f0136e06c5b95d80c.jpg', price: 350, tier: 'premium' },
     { id: 'bg_img_1_2', name: 'Premium Scene 2', image: 'Store/backgrounds/1/49677d0ebaf7d4d1e21f6e34bb7005a7.jpg', price: 380, tier: 'premium' },
     { id: 'bg_img_1_3', name: 'Premium Scene 3', image: 'Store/backgrounds/1/546590e48be6e7b9a6c510098b3b4fd5.jpg', price: 410, tier: 'premium' },
@@ -71,7 +71,7 @@ const STORE_DATA = {
     { id: 'bg_img_1_5', name: 'Premium Scene 5', image: 'Store/backgrounds/1/41903165bc56b233b300d59de0bbbfb8.jpg', price: 470, tier: 'premium' },
     { id: 'bg_img_1_6', name: 'Premium Scene 6', image: 'Store/backgrounds/1/304645652729cb36b14a30a46108c8d3.jpg', price: 500, tier: 'premium' },
     
-    // Tier 4: Premium images folder 2 (550-700 points)
+    // Images folder 2
     { id: 'bg_img_2_1', name: 'Epic Scene 1', image: 'Store/backgrounds/2/2ddd715bb433ca6e56d26bf2efa21237.jpg', price: 550, tier: 'legendary' },
     { id: 'bg_img_2_2', name: 'Epic Scene 2', image: 'Store/backgrounds/2/3fb30e32868c4a6aa1e8a3caa2863823.jpg', price: 580, tier: 'legendary' },
     { id: 'bg_img_2_3', name: 'Epic Scene 3', image: 'Store/backgrounds/2/4bd34af76f26ecd0200ea27c0e186329.jpg', price: 610, tier: 'legendary' },
@@ -79,7 +79,7 @@ const STORE_DATA = {
     { id: 'bg_img_2_5', name: 'Epic Scene 5', image: 'Store/backgrounds/2/6d7cfe5d63b16794c3af0388dcd35a06.jpg', price: 670, tier: 'legendary' },
     { id: 'bg_img_2_6', name: 'Epic Scene 6', image: 'Store/backgrounds/2/7ae7b9833cc7bb60929fb8e4a0796a3f.jpg', price: 700, tier: 'legendary' },
     
-    // Tier 5: Premium images folder 3 (750-1000 points)
+    // Images folder 3
     { id: 'bg_img_3_1', name: 'Ultimate Scene 1', image: 'Store/backgrounds/3/00b90809a6815ea8b35fd98f635f4964.jpg', price: 750, tier: 'legendary' },
     { id: 'bg_img_3_2', name: 'Ultimate Scene 2', image: 'Store/backgrounds/3/03ba1c826d141204615f84d75e3f27fb.jpg', price: 800, tier: 'legendary' },
     { id: 'bg_img_3_3', name: 'Ultimate Scene 3', image: 'Store/backgrounds/3/4df310bfcec8882324ebac3f8989bcf.jpg', price: 850, tier: 'legendary' },
@@ -91,9 +91,9 @@ const STORE_DATA = {
   ]
 };
 
-// Store State - מסונכרן עם AddyApp
 let storeState = {
   userPoints: 0,
+  pointsSpent: 0,
   ownedCharacters: [],
   ownedBackgrounds: [],
   currentCharacter: null,
@@ -105,10 +105,12 @@ let storeState = {
   showNotEnoughModal: false
 };
 
-// Initialize store with data from main app
 function initializeStore(userData) {
   if (userData) {
+    // CRITICAL: Points are calculated as earned - spent in parent
     storeState.userPoints = userData.points || 0;
+    storeState.pointsSpent = userData.pointsSpent || 0;
+    
     storeState.ownedCharacters = userData.ownedCharacters && userData.ownedCharacters.length > 0 
       ? [...userData.ownedCharacters] 
       : ['char_emoji_1', 'char_emoji_2'];
@@ -116,7 +118,6 @@ function initializeStore(userData) {
       ? [...userData.ownedBackgrounds] 
       : ['bg_plain_1', 'bg_plain_2'];
     
-    // מצא את ה-ID של הדמות הנוכחית לפי ה-emoji/image
     if (userData.currentCharacter) {
       const charMatch = STORE_DATA.characters.find(c => 
         c.emoji === userData.currentCharacter || c.image === userData.currentCharacter
@@ -126,22 +127,12 @@ function initializeStore(userData) {
       storeState.currentCharacter = 'char_emoji_1';
     }
     
-    // מצא את ה-ID של הרקע הנוכחי לפי color/gradient/image
-    if (userData.currentBackground) {
-      const bgMatch = STORE_DATA.backgrounds.find(b => 
-        b.color === userData.currentBackground || 
-        b.gradient === userData.currentBackground || 
-        b.image === userData.currentBackground
-      );
-      storeState.currentBackground = bgMatch ? bgMatch.id : 'bg_plain_1';
-    } else {
-      storeState.currentBackground = 'bg_plain_1';
-    }
+    // Background is always default on load (session only)
+    storeState.currentBackground = 'bg_plain_1';
   }
   renderStore();
 }
 
-// Render the entire store
 function renderStore() {
   const app = document.getElementById('storeContent');
   if (!app) return;
@@ -156,7 +147,6 @@ function renderStore() {
   attachEventListeners();
 }
 
-// Render header with preview
 function renderHeader() {
   const currentChar = STORE_DATA.characters.find(c => c.id === storeState.currentCharacter);
   const currentBg = STORE_DATA.backgrounds.find(b => b.id === storeState.currentBackground);
@@ -184,7 +174,6 @@ function renderHeader() {
   `;
 }
 
-// Render main content
 function renderContent() {
   return `
     <div class="store-container">
@@ -205,7 +194,6 @@ function renderContent() {
   `;
 }
 
-// Render tabs
 function renderTabs() {
   const counts = {
     characters: storeState.ownedCharacters.length + '/' + STORE_DATA.characters.length,
@@ -224,7 +212,6 @@ function renderTabs() {
   `;
 }
 
-// Render filters
 function renderFilters() {
   const tiers = ['all', 'legendary', 'premium', 'rare', 'common'];
   const tierNames = {
@@ -246,7 +233,6 @@ function renderFilters() {
   `;
 }
 
-// Render items grid
 function renderItemsGrid() {
   const items = getFilteredItems();
   
@@ -257,14 +243,12 @@ function renderItemsGrid() {
   `;
 }
 
-// Get filtered items
 function getFilteredItems() {
   const items = storeState.activeTab === 'characters' ? STORE_DATA.characters : STORE_DATA.backgrounds;
   if (storeState.filter === 'all') return items;
   return items.filter(item => item.tier === storeState.filter);
 }
 
-// Render item card
 function renderItemCard(item) {
   const isOwned = storeState.activeTab === 'characters' 
     ? storeState.ownedCharacters.includes(item.id)
@@ -300,7 +284,6 @@ function renderItemCard(item) {
     statusClass = 'locked';
   }
   
-  // Determine image content
   let imageContent = '';
   if (storeState.activeTab === 'characters') {
     if (item.emoji) {
@@ -309,7 +292,6 @@ function renderItemCard(item) {
       imageContent = `<img src="${item.image}" alt="${item.name}">`;
     }
   } else {
-    // Backgrounds
     if (item.color) {
       imageContent = `<div class="color-display" style="background: ${item.color};"></div>`;
     } else if (item.gradient) {
@@ -364,7 +346,6 @@ function renderItemCard(item) {
   `;
 }
 
-// Render purchase modal
 function renderPurchaseModal() {
   if (!storeState.selectedItem) return '';
   
@@ -403,7 +384,7 @@ function renderPurchaseModal() {
           <p class="modal-item-name">${item.name}</p>
           <div class="modal-price">
             <svg class="price-star" style="width: 1.5rem; height: 1.5rem;" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9.049 2.927c.3-.921 1.603-.9211.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
             <span style="font-weight: bold; font-size: 1.5rem;">${item.price} Points</span>
           </div>
@@ -418,7 +399,6 @@ function renderPurchaseModal() {
   `;
 }
 
-// Render not enough points modal
 function renderNotEnoughModal() {
   if (!storeState.selectedItem) return '';
   
@@ -469,9 +449,7 @@ function renderNotEnoughModal() {
   `;
 }
 
-// Attach event listeners
 function attachEventListeners() {
-  // Tab buttons
   document.querySelectorAll('[data-tab]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       storeState.activeTab = e.target.dataset.tab;
@@ -479,7 +457,6 @@ function attachEventListeners() {
     });
   });
   
-  // Filter buttons
   document.querySelectorAll('[data-filter]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       storeState.filter = e.target.dataset.filter;
@@ -487,7 +464,6 @@ function attachEventListeners() {
     });
   });
   
-  // Item cards
   document.querySelectorAll('[data-item-id]').forEach(card => {
     card.addEventListener('click', () => {
       handleItemClick(card.dataset.itemId);
@@ -495,7 +471,6 @@ function attachEventListeners() {
   });
 }
 
-// Handle item click
 function handleItemClick(itemId) {
   const items = storeState.activeTab === 'characters' 
     ? STORE_DATA.characters : STORE_DATA.backgrounds;
@@ -512,11 +487,13 @@ function handleItemClick(itemId) {
   
   if (isOwned) {
     if (!isCurrent) {
-      // Activate item
+      // FIXED: ONLY activate the item in the current tab
       if (storeState.activeTab === 'characters') {
         storeState.currentCharacter = itemId;
+        // FIXED: Don't change currentBackground here
       } else {
         storeState.currentBackground = itemId;
+        // FIXED: Don't change currentCharacter here
       }
       updateMainApp();
       renderStore();
@@ -532,47 +509,52 @@ function handleItemClick(itemId) {
   }
 }
 
-// Close purchase modal
 function closePurchaseModal() {
   storeState.showPurchaseModal = false;
   storeState.selectedItem = null;
   renderStore();
 }
 
-// Close not enough modal
 function closeNotEnoughModal() {
   storeState.showNotEnoughModal = false;
   storeState.selectedItem = null;
   renderStore();
 }
 
-// Confirm purchase
 function confirmPurchase() {
   if (!storeState.selectedItem) return;
   
   const item = storeState.selectedItem;
   
-  // עדכן נקודות - הפחת את המחיר
-  storeState.userPoints -= item.price;
-  
-  // עדכן pointsSpent ב-storeState (זה ישמר ל-AddyApp)
-  if (!storeState.pointsSpent) {
-    storeState.pointsSpent = 0;
+  // CRITICAL: Validate balance before purchase
+  if (storeState.userPoints < item.price) {
+    toast('Insufficient points!');
+    storeState.showPurchaseModal = false;
+    storeState.selectedItem = null;
+    renderStore();
+    return;
   }
+  
+  // FIXED: Update pointsSpent (tracked separately from earned points)
   storeState.pointsSpent += item.price;
+  
+  // FIXED: Calculate available points correctly
+  storeState.userPoints = storeState.userPoints - item.price;
   
   if (storeState.activeTab === 'characters') {
     storeState.ownedCharacters.push(item.id);
     storeState.currentCharacter = item.id;
+    // FIXED: Don't touch background here
   } else {
     storeState.ownedBackgrounds.push(item.id);
     storeState.currentBackground = item.id;
+    // FIXED: Don't touch character here
   }
   
   storeState.showPurchaseModal = false;
   storeState.selectedItem = null;
   
-  // שמור את הנקודות והרכישות ל-AddyApp
+  // FIXED: Update main app with atomic transaction
   updateMainApp();
   renderStore();
   
@@ -581,33 +563,32 @@ function confirmPurchase() {
   }
 }
 
-// Update main app with store data - זה שומר ל-Supabase
 function updateMainApp() {
   if (typeof window.updateStoreDataInMainApp === 'function') {
     const currentChar = STORE_DATA.characters.find(c => c.id === storeState.currentCharacter);
     const currentBg = STORE_DATA.backgrounds.find(b => b.id === storeState.currentBackground);
     
-    // בנה את הנתונים לעדכון - תמיד כולל את כל השדות
     const updateData = {
-      points: storeState.userPoints,
-      pointsSpent: storeState.pointsSpent || 0,
+      pointsSpent: storeState.pointsSpent, // FIXED: Track spent separately
       ownedCharacters: [...storeState.ownedCharacters],
       ownedBackgrounds: [...storeState.ownedBackgrounds],
+      // FIXED: Only send character if it changed
       currentCharacter: currentChar ? (currentChar.emoji || currentChar.image || '•') : null,
-      currentBackground: currentBg ? (currentBg.color || currentBg.gradient || currentBg.image || '#F8FAFC') : null
+      // FIXED: Only send background if it changed (and not default)
+      currentBackground: storeState.activeTab === 'backgrounds' && currentBg 
+        ? (currentBg.color || currentBg.gradient || currentBg.image || '#F8FAFC') 
+        : undefined // Don't send if not actively changing background
     };
     
     window.updateStoreDataInMainApp(updateData);
   }
 }
 
-// Make functions global
 window.closePurchaseModal = closePurchaseModal;
 window.closeNotEnoughModal = closeNotEnoughModal;
 window.confirmPurchase = confirmPurchase;
 window.initializeStore = initializeStore;
 
-// Initialize on load
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     initializeStore();
