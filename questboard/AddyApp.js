@@ -528,7 +528,7 @@ function finishAvatarCreation(isPersonalCreation){
   }
 
   // Personal first creation
-  if(state.workspace.type==='personal' && !state.workspace.id){
+  if(state.setup.userType==='personal' && !state.workspace.id){
     createWorkspace('personal', null, null);
     saveCurrentWorkspace();
     renderPlatformForUser(); 
@@ -543,7 +543,6 @@ function finishAvatarCreation(isPersonalCreation){
   showScreen('platform');
   toast('Avatar created successfully');
 }
-
 
 
 
@@ -771,7 +770,8 @@ function renderTeamRooms(){
   const cellW=240, cellH=190, startX=60, startY=60;
 
   items.forEach((item,i)=>{
-    if(!isPersonal) ensureTeamExists(item);
+    ensureTeamExists(item);
+    
     const el=document.createElement('div'); 
     el.className='team-room'; 
     el.dataset.team=item;
@@ -802,11 +802,17 @@ function renderSidebar(){
   
   const sidePanel = byId('sidePanel');
   if(sidePanel) {
-    sidePanel.style.display = isPersonal ? 'none' : 'block';
+    sidePanel.style.display = 'block';
   }
   
-  if(isPersonal) return;
-  
+  if(isPersonal) {
+    // Hide company events and employees sections for personal mode
+    const companyEventsSection = byId('sidebarCompanyEvents')?.closest('.side-section');
+    const employeeSection = document.querySelector('#sidebarEmployeeList')?.closest('.side-section');
+    if(companyEventsSection) companyEventsSection.style.display = 'none';
+    if(employeeSection) employeeSection.style.display = 'none';
+  }
+
     // Render company events in sidebar
   const companyEventsList = byId('sidebarCompanyEvents');
   if(companyEventsList) {
@@ -837,8 +843,11 @@ function renderSidebar(){
 
   const teamList=byId('sidebarTeamList');
   if(teamList){
-    // Calculate percentages for each team
-    const teamsWithPercentage = state.setup.teams.map(t => {
+    const isPersonal = state.workspace.type === 'personal';
+    const listItems = isPersonal ? state.setup.categories : state.setup.teams;
+    
+    // Calculate percentages for each team/category
+    const teamsWithPercentage = listItems.map(t => {
       let percentage = 0;
       if(state.teams[t]) {
         const teamTasks = state.teams[t].tasks || [];
@@ -850,10 +859,20 @@ function renderSidebar(){
       }
       return { name: t, percentage };
     });
-    
+
+
     // Sort by percentage (highest first)
     teamsWithPercentage.sort((a, b) => b.percentage - a.percentage);
     
+      // Update sidebar title based on mode
+  const sideSection = teamList?.closest('.side-section');
+  if(sideSection) {
+    const titleEl = sideSection.querySelector('.section-title');
+    if(titleEl) {
+      titleEl.textContent = isPersonal ? 'Categories - Progress' : 'Teams - Leaderboard';
+    }
+  }
+
     teamList.innerHTML = teamsWithPercentage.map(t=>
       `<div class="team-item" data-team="${t.name}">
         <span>${t.name}</span>
@@ -1401,12 +1420,11 @@ function openTeam(teamName){
   state.currentTeam=teamName;
   const isPersonal = state.workspace.type === 'personal';
   
-  if(isPersonal) {
-    ensureTeamExists(teamName);
-  }
+  ensureTeamExists(teamName);
   
   const team=state.teams[teamName];
   if(!team) return;
+
 
   stopOfficeControls();
 
