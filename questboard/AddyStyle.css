@@ -95,15 +95,25 @@ html,body{margin:0;padding:0;font-family:var(--font);color:var(--color-slate-900
   background-position: 0 0, 10px 10px;
 }
 
-.office-map::before {
+.office-map::before,
+.team-container::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
-  right: 300px;
+  right: 0;
   bottom: 0;
   z-index: 0;
   pointer-events: none;
+}
+
+.team-container {
+  position: relative;
+}
+
+.team-container > * {
+  position: relative;
+  z-index: 1;
 }
 
 .user-character {

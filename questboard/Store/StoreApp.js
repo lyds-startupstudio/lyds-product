@@ -538,8 +538,8 @@ function confirmPurchase() {
   // FIXED: Update pointsSpent (tracked separately from earned points)
   storeState.pointsSpent += item.price;
   
-  // FIXED: Calculate available points correctly
-  storeState.userPoints = storeState.userPoints - item.price;
+  // FIXED: Deduct from available points display
+  storeState.userPoints -= item.price;
   
   if (storeState.activeTab === 'characters') {
     storeState.ownedCharacters.push(item.id);

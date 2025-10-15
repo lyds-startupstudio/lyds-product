@@ -15,7 +15,10 @@ const state = {
   companyEvents: [],
   
   // Temporary avatar data during creation
-  tempAvatar: null
+  tempAvatar: null,
+  
+  // Track points spent in store separately
+  pointsSpent: 0
 };
 
 // ---- Workspace helpers ----
@@ -23,7 +26,8 @@ function buildEmptyWorkspace() {
   return {
     setup: { userType: null, businessType: null, personalPurpose: null, teams: [], categories: [] },
     avatars: [],
-    teams: {}
+    teams: {},
+    pointsSpent: 0
   };
 }
 
@@ -33,6 +37,7 @@ function applyWorkspaceData(data) {
   state.avatars = JSON.parse(JSON.stringify(d.avatars || []));
   state.teams = JSON.parse(JSON.stringify(d.teams || {}));
   state.companyEvents = JSON.parse(JSON.stringify(d.companyEvents || []));
+  state.pointsSpent = d.pointsSpent || 0;
   state.currentUserId = null;
 }
 
@@ -135,7 +140,8 @@ async function saveCurrentWorkspace(){
     avatars: state.avatars,
     teams: state.teams,
     companyEvents: state.companyEvents || [],
-    storeData: state.storeData || null
+    storeData: state.storeData || null,
+    pointsSpent: state.pointsSpent || 0
   };
   
   // שמור ל-localStorage (גיבוי מקומי)
@@ -172,7 +178,19 @@ function hydrateFrom(ws){
   state.avatars = JSON.parse(JSON.stringify(ws.data?.avatars || []));
   state.teams = JSON.parse(JSON.stringify(ws.data?.teams || {}));
   state.companyEvents = JSON.parse(JSON.stringify(ws.data?.companyEvents || []));
-  state.storeData = ws.data?.storeData ? JSON.parse(JSON.stringify(ws.data.storeData)) : null;
+  state.pointsSpent = ws.data?.pointsSpent || 0;
+  
+  // Load store data with proper ownership info
+  if (ws.data?.storeData) {
+    state.storeData = {
+      ownedCharacters: ws.data.storeData.ownedCharacters || ['char_emoji_1', 'char_emoji_2'],
+      ownedBackgrounds: ws.data.storeData.ownedBackgrounds || ['bg_plain_1', 'bg_plain_2'],
+      currentCharacter: ws.data.storeData.currentCharacter || '•'
+    };
+  } else {
+    state.storeData = null;
+  }
+  
   state.currentUserId = null;
   state.currentTeam = null;
   state.office = { posX:0, posY:0, speed:3, keys:{}, loopId:null, keydownHandler:null, keyupHandler:null, nearTeam:null };
@@ -528,10 +546,9 @@ function ensureTeamExists(name){
 function renderPlatformForUser(){
   const u=getCurrentUser();
   
-  // Restore session background if exists (session only, not from workspace)
+  // Apply saved background from storeData (persisted across sessions)
   try {
-    const sessionBg = sessionStorage.getItem('addy_session_bg');
-    if(sessionBg && u) {
+    if(u && state.storeData && state.storeData.currentBackground && state.storeData.currentBackground !== '#F8FAFC') {
       const officeMap = byId('officeMap');
       if(officeMap) {
         let styleEl = byId('office-bg-style');
@@ -541,16 +558,17 @@ function renderPlatformForUser(){
           document.head.appendChild(styleEl);
         }
         
+        const bgData = state.storeData.currentBackground;
         let bgStyle = '';
-        if(sessionBg.startsWith('#')) {
-          bgStyle = `background: ${sessionBg}; opacity: 0.85;`;
-        } else if(sessionBg.startsWith('linear-gradient')) {
-          bgStyle = `background: ${sessionBg}; opacity: 0.85;`;
+        if(bgData.startsWith('#')) {
+          bgStyle = `background: ${bgData}; opacity: 0.85;`;
+        } else if(bgData.startsWith('linear-gradient')) {
+          bgStyle = `background: ${bgData}; opacity: 0.85;`;
         } else {
-          bgStyle = `background: url('${sessionBg}'); background-size: cover; background-position: center; opacity: 0.85;`;
+          bgStyle = `background: url('${bgData}'); background-size: cover; background-position: center; opacity: 0.85;`;
         }
         
-        styleEl.textContent = `.office-map::before { ${bgStyle} }`;
+        styleEl.textContent = `.office-map::before, .team-container::before { ${bgStyle} }`;
       }
     }
   } catch(e) {}
@@ -2839,15 +2857,15 @@ function openStore() {
     state.storeData = {
       ownedCharacters: ['char_emoji_1', 'char_emoji_2'],
       ownedBackgrounds: ['bg_plain_1', 'bg_plain_2'],
-      currentCharacter: user.emoji,
-      pointsSpent: 0
+      currentCharacter: user.emoji
     };
+    saveCurrentWorkspace(); // Save initial store data
   }
   
-  // CRITICAL: Points = Earned - Spent (single source of truth)
+  // CRITICAL: Points = Earned - Spent (single source of truth from state.pointsSpent)
   const earnedPoints = calculateUserPoints(user.id);
-  const availablePoints = earnedPoints - (state.storeData.pointsSpent || 0);
-  
+  const availablePoints = earnedPoints - (state.pointsSpent || 0);
+
   // Update store header
   const storeUserAvatar = byId('storeUserAvatar');
   const storeUserName = byId('storeUserName');
@@ -2864,7 +2882,7 @@ function openStore() {
     if (window.initializeStore) {
       window.initializeStore({
         points: availablePoints,
-        pointsSpent: state.storeData.pointsSpent || 0,
+        pointsSpent: state.pointsSpent || 0,
         ownedCharacters: state.storeData.ownedCharacters,
         ownedBackgrounds: state.storeData.ownedBackgrounds,
         currentCharacter: state.storeData.currentCharacter,
@@ -3026,9 +3044,9 @@ window.updateStoreDataInMainApp = function(storeData) {
     state.storeData = {};
   }
   
-  // FIXED: Track spent points atomically
+  // FIXED: Track spent points atomically in main state
   if (storeData.pointsSpent !== undefined) {
-    state.storeData.pointsSpent = storeData.pointsSpent;
+    state.pointsSpent = storeData.pointsSpent;
   }
   
   // Update ownership lists
@@ -3038,6 +3056,9 @@ window.updateStoreDataInMainApp = function(storeData) {
   if (storeData.ownedBackgrounds) {
     state.storeData.ownedBackgrounds = [...storeData.ownedBackgrounds];
   }
+  
+  // CRITICAL: Save immediately after any purchase
+  saveCurrentWorkspace();
   
   // FIXED: Update currentCharacter ONLY if explicitly provided
   if (storeData.currentCharacter !== undefined && storeData.currentCharacter !== state.storeData.currentCharacter) {
@@ -3057,8 +3078,12 @@ window.updateStoreDataInMainApp = function(storeData) {
     if(storeUserAvatar) storeUserAvatar.textContent = storeData.currentCharacter;
   }
   
-  // FIXED: Update currentBackground ONLY if explicitly provided and not undefined
-  if (storeData.currentBackground !== undefined && storeData.currentBackground !== '#F8FAFC') {
+   // FIXED: Update currentBackground ONLY if explicitly provided and not undefined
+  if (storeData.currentBackground !== undefined) {
+    // Save to storeData so it persists
+    if (!state.storeData) state.storeData = {};
+    state.storeData.currentBackground = storeData.currentBackground;
+    
     const officeMap = byId('officeMap');
     if(officeMap) {
       const bgData = storeData.currentBackground;
@@ -3079,12 +3104,7 @@ window.updateStoreDataInMainApp = function(storeData) {
         bgStyle = `background: url('${bgData}'); background-size: cover; background-position: center; opacity: 0.85;`;
       }
       
-      styleEl.textContent = `.office-map::before { ${bgStyle} }`;
-      
-      // FIXED: Store in session storage ONLY
-      try {
-        sessionStorage.setItem('addy_session_bg', bgData);
-      } catch(e) {}
+      styleEl.textContent = `.office-map::before, .team-container::before { ${bgStyle} }`;
     }
   }
   
@@ -3093,8 +3113,8 @@ window.updateStoreDataInMainApp = function(storeData) {
   
   // FIXED: Calculate and display correct available points EVERYWHERE
   const earnedPoints = calculateUserPoints(user.id);
-  const availablePoints = earnedPoints - (state.storeData.pointsSpent || 0);
-  
+  const availablePoints = earnedPoints - (state.pointsSpent || 0);
+
   // Update store header points
   const storeUserPoints = byId('storeUserPoints');
   if(storeUserPoints) storeUserPoints.textContent = `${availablePoints} Points`;
@@ -3185,10 +3205,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if(!state.storeData && state.currentUserId) {
         const user = getCurrentUser();
         state.storeData = {
-          ownedCharacters: ['char_emoji_1', 'char_emoji_2'],
-          ownedBackgrounds: ['bg_plain_1', 'bg_plain_2'],
-          currentCharacter: user?.emoji || '•',
-          pointsSpent: 0
+          ownedCharacters: ws.data?.storeData?.ownedCharacters || ['char_emoji_1', 'char_emoji_2'],
+          ownedBackgrounds: ws.data?.storeData?.ownedBackgrounds || ['bg_plain_1', 'bg_plain_2'],
+          currentCharacter: ws.data?.storeData?.currentCharacter || user?.emoji || '•'
         };
       }
       
@@ -3214,8 +3233,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
               bgStyle = `background: url('${bgData}'); background-size: cover; background-position: center; opacity: 0.85;`;
             }
             
-            styleEl.textContent = `.office-map::before { ${bgStyle} }`;
-          }
+        styleEl.textContent = `.office-map::before, .team-container::before { ${bgStyle} }`;          }
         }, 100);
       }
       
