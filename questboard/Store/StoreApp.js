@@ -490,12 +490,11 @@ function handleItemClick(itemId) {
       // FIXED: ONLY activate the item in the current tab
       if (storeState.activeTab === 'characters') {
         storeState.currentCharacter = itemId;
-        // FIXED: Don't change currentBackground here
       } else {
         storeState.currentBackground = itemId;
-        // FIXED: Don't change currentCharacter here
       }
-      updateMainApp();
+      // CRITICAL: Only send what changed, don't send pointsSpent when just activating
+      updateMainAppActivationOnly();
       renderStore();
     }
   } else if (storeState.userPoints >= item.price) {
@@ -508,6 +507,8 @@ function handleItemClick(itemId) {
     renderStore();
   }
 }
+
+
 
 function closePurchaseModal() {
   storeState.showPurchaseModal = false;
@@ -540,7 +541,7 @@ function confirmPurchase() {
   
   // FIXED: Deduct from available points display
   storeState.userPoints -= item.price;
-  
+
   if (storeState.activeTab === 'characters') {
     storeState.ownedCharacters.push(item.id);
     storeState.currentCharacter = item.id;
@@ -583,6 +584,27 @@ function updateMainApp() {
     window.updateStoreDataInMainApp(updateData);
   }
 }
+
+// Separate function for activating items (doesn't touch pointsSpent)
+function updateMainAppActivationOnly() {
+  if (typeof window.updateStoreDataInMainApp === 'function') {
+    const currentChar = STORE_DATA.characters.find(c => c.id === storeState.currentCharacter);
+    const currentBg = STORE_DATA.backgrounds.find(b => b.id === storeState.currentBackground);
+    
+    const updateData = {
+      ownedCharacters: [...storeState.ownedCharacters],
+      ownedBackgrounds: [...storeState.ownedBackgrounds],
+      currentCharacter: currentChar ? (currentChar.emoji || currentChar.image || '•') : undefined,
+      currentBackground: storeState.activeTab === 'backgrounds' && currentBg 
+        ? (currentBg.color || currentBg.gradient || currentBg.image || '#F8FAFC') 
+        : undefined
+      // CRITICAL: Don't send pointsSpent - it shouldn't change when just activating
+    };
+    
+    window.updateStoreDataInMainApp(updateData);
+  }
+}
+
 
 window.closePurchaseModal = closePurchaseModal;
 window.closeNotEnoughModal = closeNotEnoughModal;

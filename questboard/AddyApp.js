@@ -144,6 +144,8 @@ async function saveCurrentWorkspace(){
     pointsSpent: state.pointsSpent || 0
   };
   
+  console.log('💾 SAVING workspace - pointsSpent (bin):', state.pointsSpent);
+  
   // שמור ל-localStorage (גיבוי מקומי)
   const store = readStore();
   store[state.workspace.id] = {
@@ -154,12 +156,17 @@ async function saveCurrentWorkspace(){
   };
   writeStore(store);
   
+  console.log('✅ Saved to localStorage. Verifying...');
+  const verification = readStore();
+  console.log('📋 Verified pointsSpent in storage:', verification[state.workspace.id]?.data?.pointsSpent);
+  
   // שמור ל-Supabase
   if(SUPA_ON){
     try{
       await saveWorkspaceToCloud(data, currentWorkspaceName);
+      console.log('☁️ Saved to Supabase');
     }catch(e){
-      // אם נכשל, לפחות יש לנו localStorage
+      console.log('⚠️ Supabase save failed, but localStorage is saved');
     }
   }
 }
@@ -178,14 +185,18 @@ function hydrateFrom(ws){
   state.avatars = JSON.parse(JSON.stringify(ws.data?.avatars || []));
   state.teams = JSON.parse(JSON.stringify(ws.data?.teams || {}));
   state.companyEvents = JSON.parse(JSON.stringify(ws.data?.companyEvents || []));
+  
+  // CRITICAL: Load the "bin" (points spent)
   state.pointsSpent = ws.data?.pointsSpent || 0;
+  console.log('📂 LOADING workspace - pointsSpent (bin) from storage:', state.pointsSpent);
   
   // Load store data with proper ownership info
   if (ws.data?.storeData) {
     state.storeData = {
       ownedCharacters: ws.data.storeData.ownedCharacters || ['char_emoji_1', 'char_emoji_2'],
       ownedBackgrounds: ws.data.storeData.ownedBackgrounds || ['bg_plain_1', 'bg_plain_2'],
-      currentCharacter: ws.data.storeData.currentCharacter || '•'
+      currentCharacter: ws.data.storeData.currentCharacter || '•',
+      currentBackground: ws.data.storeData.currentBackground || null
     };
   } else {
     state.storeData = null;
@@ -197,6 +208,8 @@ function hydrateFrom(ws){
   state.ui = { beltPaused:false };
   state.workspace = { id: ws.id, type: ws.type, login: ws.login };
 }
+
+
 
 /** DOM helpers **/
 const $ = (s)=>document.querySelector(s);
@@ -588,10 +601,10 @@ function renderPlatformForUser(){
   if(navUserAvatar) navUserAvatar.textContent=u?.emoji || '•';
   if(navUserName) navUserName.textContent=u?.name || (state.workspace.type==='business'?'Not signed in':'');
 
-  // FIXED: Show points in nav header
+  // FIXED: Show points in nav header using state.pointsSpent
   if(navUserRole && u) {
     const earnedPoints = calculateUserPoints(u.id);
-    const availablePoints = earnedPoints - (state.storeData?.pointsSpent || 0);
+    const availablePoints = earnedPoints - (state.pointsSpent || 0);
     const roleText = u.role || '';
     navUserRole.innerHTML = `${roleText} <span style="color:#10B981;font-weight:800;margin-left:8px;">⭐ ${availablePoints} pts</span>`;
   } else if(navUserRole) {
@@ -2834,13 +2847,23 @@ window.handleCategoryInput=handleCategoryInput;
     try{ saveLocal(); }catch(e){ console.warn("Local save error", e); }
     if(SUPA_ON){
       try{
-        await saveWorkspaceToCloud({ setup: state.setup, avatars: state.avatars, teams: state.teams, companyEvents: state.companyEvents }, currentWorkspaceName);
+        // CRITICAL: Include pointsSpent and storeData in cloud save!
+        await saveWorkspaceToCloud({ 
+          setup: state.setup, 
+          avatars: state.avatars, 
+          teams: state.teams, 
+          companyEvents: state.companyEvents,
+          pointsSpent: state.pointsSpent || 0,
+          storeData: state.storeData || null
+        }, currentWorkspaceName);
       }catch(e){
         console.warn("Cloud save failed:", e?.message||e);
       }
     }
   };
 })();
+
+
 
 /* ===========================
    Store Integration
@@ -2857,7 +2880,8 @@ function openStore() {
     state.storeData = {
       ownedCharacters: ['char_emoji_1', 'char_emoji_2'],
       ownedBackgrounds: ['bg_plain_1', 'bg_plain_2'],
-      currentCharacter: user.emoji
+      currentCharacter: user.emoji,
+      currentBackground: null
     };
     saveCurrentWorkspace(); // Save initial store data
   }
@@ -2865,7 +2889,7 @@ function openStore() {
   // CRITICAL: Points = Earned - Spent (single source of truth from state.pointsSpent)
   const earnedPoints = calculateUserPoints(user.id);
   const availablePoints = earnedPoints - (state.pointsSpent || 0);
-
+  console.log('Opening store - Earned:', earnedPoints, 'Spent (bin):', state.pointsSpent, 'Available:', availablePoints);
   // Update store header
   const storeUserAvatar = byId('storeUserAvatar');
   const storeUserName = byId('storeUserName');
@@ -2886,7 +2910,7 @@ function openStore() {
         ownedCharacters: state.storeData.ownedCharacters,
         ownedBackgrounds: state.storeData.ownedBackgrounds,
         currentCharacter: state.storeData.currentCharacter,
-        currentBackground: '#F8FAFC'
+        currentBackground: state.storeData.currentBackground || '#F8FAFC'
       });
     }
   }, 100);
@@ -3035,7 +3059,6 @@ function handleStoreItemClick(itemId, type) {
   }
 }
 
-// Receive updates from store
 window.updateStoreDataInMainApp = function(storeData) {
   const user = getCurrentUser();
   if (!user) return;
@@ -3044,11 +3067,12 @@ window.updateStoreDataInMainApp = function(storeData) {
     state.storeData = {};
   }
   
-  // FIXED: Track spent points atomically in main state
+  // FIXED: Track spent points atomically in main state (the "bin")
   if (storeData.pointsSpent !== undefined) {
     state.pointsSpent = storeData.pointsSpent;
+    console.log('Updated pointsSpent bin to:', state.pointsSpent);
   }
-  
+
   // Update ownership lists
   if (storeData.ownedCharacters) {
     state.storeData.ownedCharacters = [...storeData.ownedCharacters];
@@ -3056,9 +3080,6 @@ window.updateStoreDataInMainApp = function(storeData) {
   if (storeData.ownedBackgrounds) {
     state.storeData.ownedBackgrounds = [...storeData.ownedBackgrounds];
   }
-  
-  // CRITICAL: Save immediately after any purchase
-  saveCurrentWorkspace();
   
   // FIXED: Update currentCharacter ONLY if explicitly provided
   if (storeData.currentCharacter !== undefined && storeData.currentCharacter !== state.storeData.currentCharacter) {
@@ -3078,10 +3099,8 @@ window.updateStoreDataInMainApp = function(storeData) {
     if(storeUserAvatar) storeUserAvatar.textContent = storeData.currentCharacter;
   }
   
-   // FIXED: Update currentBackground ONLY if explicitly provided and not undefined
+  // FIXED: Update currentBackground ONLY if explicitly provided and not undefined
   if (storeData.currentBackground !== undefined) {
-    // Save to storeData so it persists
-    if (!state.storeData) state.storeData = {};
     state.storeData.currentBackground = storeData.currentBackground;
     
     const officeMap = byId('officeMap');
@@ -3108,29 +3127,29 @@ window.updateStoreDataInMainApp = function(storeData) {
     }
   }
   
-  // FIXED: Save immediately to persist purchases
+  // CRITICAL: Save EVERYTHING at the end after all updates
   saveCurrentWorkspace();
   
   // FIXED: Calculate and display correct available points EVERYWHERE
   const earnedPoints = calculateUserPoints(user.id);
   const availablePoints = earnedPoints - (state.pointsSpent || 0);
-
+  
   // Update store header points
   const storeUserPoints = byId('storeUserPoints');
   if(storeUserPoints) storeUserPoints.textContent = `${availablePoints} Points`;
   
-  // FIXED: Update nav header points (home site)
-  // const navUserRole = byId('navUserRole');
-  // if(navUserRole) {
-  //   // Show points in role section
-  //   const roleText = user.role || '';
-  //   navUserRole.textContent = roleText;
-  //   navUserRole.innerHTML = `${roleText} <span style="color:#10B981;font-weight:800;margin-left:8px;">⭐ ${availablePoints} pts</span>`;
-  // }
+  // Update nav header points
+  const navUserRole = byId('navUserRole');
+  if(navUserRole) {
+    const roleText = user.role || '';
+    navUserRole.innerHTML = `${roleText} <span style="color:#10B981;font-weight:800;margin-left:8px;">⭐ ${availablePoints} pts</span>`;
+  }
   
   // FIXED: Emit update for office UI sync
   emitPointsUpdate(user.id);
 };
+
+
 
 
 
@@ -3190,6 +3209,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }
 
   // Auto-restore session
+  // Auto-restore session
   const sess = readActiveSession();
   if (sess && sess.wsId) {
     const store = readStore();
@@ -3202,12 +3222,17 @@ document.addEventListener('DOMContentLoaded', ()=>{
         state.currentUserId = sess.employeeId;
       }
 
+      // CRITICAL: Load pointsSpent from saved data (the "bin")
+      state.pointsSpent = ws.data?.pointsSpent || 0;
+      console.log('Loaded pointsSpent from storage:', state.pointsSpent);
+
       if(!state.storeData && state.currentUserId) {
         const user = getCurrentUser();
         state.storeData = {
           ownedCharacters: ws.data?.storeData?.ownedCharacters || ['char_emoji_1', 'char_emoji_2'],
           ownedBackgrounds: ws.data?.storeData?.ownedBackgrounds || ['bg_plain_1', 'bg_plain_2'],
-          currentCharacter: ws.data?.storeData?.currentCharacter || user?.emoji || '•'
+          currentCharacter: ws.data?.storeData?.currentCharacter || user?.emoji || '•',
+          currentBackground: ws.data?.storeData?.currentBackground || null
         };
       }
       
@@ -3233,7 +3258,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
               bgStyle = `background: url('${bgData}'); background-size: cover; background-position: center; opacity: 0.85;`;
             }
             
-        styleEl.textContent = `.office-map::before, .team-container::before { ${bgStyle} }`;          }
+            styleEl.textContent = `.office-map::before, .team-container::before { ${bgStyle} }`;
+          }
         }, 100);
       }
       
@@ -3241,6 +3267,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
       showScreen('platform');
     }
   }
+
+
+
 
   window.addEventListener('points-updated', (e) => {
     const { userId, points } = e.detail;
