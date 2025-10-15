@@ -561,7 +561,7 @@ function renderPlatformForUser(){
   
   // Apply saved background from storeData (persisted across sessions)
   try {
-    if(u && state.storeData && state.storeData.currentBackground && state.storeData.currentBackground !== '#F8FAFC') {
+    if(u && state.storeData && state.storeData.currentBackground) {
       const officeMap = byId('officeMap');
       if(officeMap) {
         let styleEl = byId('office-bg-style');
@@ -586,6 +586,9 @@ function renderPlatformForUser(){
     }
   } catch(e) {}
   
+  
+
+
   // FIXED: Apply user's selected character emoji AND owned items from store
   if(u && state.storeData) {
     if(state.storeData.currentCharacter) {
